@@ -1,6 +1,8 @@
 package com.flyscale.ecserver.service;
 
 import android.annotation.SuppressLint;
+import android.app.Notification;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -15,14 +17,14 @@ import android.support.annotation.Nullable;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
-import android.util.Log;
 
-import com.flyscale.ecserver.ClientListenerThread;
+import com.flyscale.ecserver.MainActivity;
 import com.flyscale.ecserver.Recorder;
 import com.flyscale.ecserver.bean.DeviceInfo;
 import com.flyscale.ecserver.global.Constants;
 import com.flyscale.ecserver.telephony.Call;
 import com.flyscale.ecserver.util.DDLog;
+import com.flyscale.ecserver.util.JsonUtil;
 import com.flyscale.ecserver.util.PhoneUtil;
 
 import org.json.JSONException;
@@ -30,8 +32,6 @@ import org.json.JSONObject;
 import org.json.JSONTokener;
 
 import java.io.File;
-import java.util.Timer;
-import java.util.TimerTask;
 
 
 /**
@@ -61,6 +61,18 @@ public class ServerService extends Service {
         mPhoneStateListener = new MyPhoneStateListener();
         mTm.listen(mPhoneStateListener, PhoneStateListener.LISTEN_CALL_STATE);
         mUsbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
+        startForegournd();
+    }
+
+    /**
+     * 设置前台进程
+     */
+    private void startForegournd() {
+        Notification notification = new Notification();
+        Intent notificationIntent = new Intent(this, MainActivity.class);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
+        //把该service创建为前台service
+        startForeground(8888, notification);
     }
 
     @Override
@@ -90,31 +102,41 @@ public class ServerService extends Service {
         }
     };
 
+    /**
+     * 处理客户端发来的指令
+     *
+     * @param msg
+     * @throws JSONException
+     */
     private static void handleCmdFromClient(Message msg) throws JSONException {
         String cmdStr = (String) msg.obj;
         DDLog.i(ServerService.class, "cmdStr=" + cmdStr);
-        JSONObject cmdObj = (JSONObject) new JSONTokener(cmdStr).nextValue();
-        String eventType = cmdObj.getString(Constants.CMD_EVENT_TYPE);
-        DDLog.i(ServerService.class, "EventType=" + eventType);
-        switch (eventType) {
-            case Constants.EVENT_TYPE_DIALER:
-                String number = cmdObj.getString(Constants.CMD_CALL_NUMBER);
-                PhoneUtil.call(mContext, number);
-                break;
-            case Constants.EVENT_TYPE_ENDCALL:
-                PhoneUtil.endCall(mContext);
-                break;
-            case Constants.EVENT_TYPE_ANSWERCALL:
-                if (PhoneUtil.isRinging(mContext)) {
-                    PhoneUtil.answerCall(mContext);
-                } else {
-                }
-                break;
-            case Constants.EVENT_TYPE_GETDEVICEINFO:
-                DeviceInfo deviceInfo = PhoneUtil.getDeviceInfo(mContext);
-                DDLog.i(ServerService.class, "deviceInfo Json=" + deviceInfo.toJson());
-                mServerThread.sendMsg2Client(deviceInfo.toJson());
-                break;
+        if (JsonUtil.isJson(cmdStr, 0)) {
+            JSONObject cmdObj = (JSONObject) new JSONTokener(cmdStr).nextValue();
+            String eventType = cmdObj.getString(Constants.CMD_EVENT_TYPE);
+            DDLog.i(ServerService.class, "EventType=" + eventType);
+            switch (eventType) {
+                case Constants.EVENT_TYPE_DIALER:
+                    String number = cmdObj.getString(Constants.CMD_CALL_NUMBER);
+                    PhoneUtil.call(mContext, number);
+                    break;
+                case Constants.EVENT_TYPE_ENDCALL:
+                    PhoneUtil.endCall(mContext);
+                    break;
+                case Constants.EVENT_TYPE_ANSWERCALL:
+                    if (PhoneUtil.isRinging(mContext)) {
+                        PhoneUtil.answerCall(mContext);
+                    } else {
+                    }
+                    break;
+                case Constants.EVENT_TYPE_GETDEVICEINFO:
+                    DeviceInfo deviceInfo = PhoneUtil.getDeviceInfo(mContext);
+                    DDLog.i(ServerService.class, "deviceInfo Json=" + deviceInfo.toJson());
+                    mServerThread.sendMsg2Client(deviceInfo.toJson());
+                    break;
+            }
+        }else {
+            DDLog.i(ServerService.class, "not a valid json string!");
         }
     }
 
@@ -213,8 +235,10 @@ public class ServerService extends Service {
 
     private void startServerThread() {
         DDLog.i(ServerService.class, "startServerThread");
-        if (mServerThread == null || !mServerThread.isAlive()) {
-            mServerThread = new ClientListenerThread(ClientListenerThread.class.getSimpleName(), mHandler, true);
+        if (mServerThread == null) {
+//            mServerThread = ClientListenerThread.getInstance(mHandler);
+            mServerThread = new ClientListenerThread();
+            mServerThread.addHandler(mHandler);
             mServerThread.start();
         } else {
             DDLog.w(ServerService.class, "ClientListenerThread is running,only one instance is permitted");
@@ -237,6 +261,7 @@ public class ServerService extends Service {
         super.onDestroy();
         stopServerTherad();
         mTm.listen(mPhoneStateListener, PhoneStateListener.LISTEN_NONE);
+        stopForeground(true);
     }
 
     private class MyPhoneStateListener extends PhoneStateListener {

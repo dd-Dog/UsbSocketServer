@@ -12,4 +12,9 @@ public class CallInfo extends EventInfo {
     public String CallId;       //电话 id
     public String RecoderPath;  //返回录音文件路径
     public String EventType;    //事件类型
+
+    @Override
+    public String toJson() {
+        return null;
+    }
 }

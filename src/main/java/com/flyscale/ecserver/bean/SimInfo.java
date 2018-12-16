@@ -22,4 +22,8 @@ public class SimInfo extends EventInfo {
      */
     public String SimState;
 
+    @Override
+    public String toJson() {
+        return null;
+    }
 }

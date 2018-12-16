@@ -12,6 +12,7 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
 
 
+    <!--persistent 设置常驻内存-->
     <application
         android:name=".application.ServerApplication"
         android:allowBackup="true"
@@ -20,7 +21,9 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
+        android:persistent="true"
         tools:ignore="GoogleAppIndexingWarning">
+
         <activity android:name="com.flyscale.ecserver.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -29,7 +32,9 @@
             </intent-filter>
         </activity>
 
-        <service android:name=".service.ServerService"/>
+        <service android:name=".service.ServerService"
+
+            />
     </application>
 
 </manifest>

@@ -43,6 +43,10 @@ public class Constants {
     public static final String PHONE_STATE_OFFHOOK = "7";    //正在接听
     public static final String PHONE_STATE_HANGUP = "8";     //正在挂断
     public static final String PHONE_STATE_DISCONNECT = "9";    //已经挂断
+
+
+    public static final String KEEP_ALIVE_TYPE = "101"; //保活
+
     public static final String ACK = "ack";
     public static final String ACTION_CALL_PRIVILEGED = "android.intent.action.CALL_PRIVILEGED";
 
@@ -51,4 +55,5 @@ public class Constants {
 
     public static final String AT_CLIENT_SP = "at_client_sp";
     public static final String FLAG_CALL_STATE = "call_state";
+    public static final int LOCAL_PORT = 9000;
 }
