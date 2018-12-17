@@ -69,6 +69,7 @@ public class ServerService extends Service {
     private static String SMS_DELIVERED_ACTION = "SMS_DELIVERED_ACTION";
     private SmsReceiver mSmsReceiver;
     private ServiceHandler mHandler = new ServiceHandler();
+    private ContentResolver mResolver;
 
     @Override
     public void onCreate() {
@@ -104,9 +105,9 @@ public class ServerService extends Service {
         //usb对象
         mUsbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
         //监听短信
-        ContentResolver resolver = getContentResolver();
-        mSmsObserver = new SmsObserver(resolver, new SmsHandler(this));
-        resolver.registerContentObserver(Uri.parse(Constants.SMS_BASE_URI), true, mSmsObserver);
+        mResolver = getContentResolver();
+        mSmsObserver = new SmsObserver(mResolver, new SmsHandler(this));
+        mResolver.registerContentObserver(Uri.parse(Constants.SMS_BASE_URI), true, mSmsObserver);
 
         return super.onStartCommand(intent, flags, startId);
     }
@@ -475,6 +476,8 @@ public class ServerService extends Service {
         stopServerTherad(false);
         mTm.listen(mPhoneStateListener, PhoneStateListener.LISTEN_NONE);
         unregisterReceiver(mServerReceiver);
+        unregisterReceiver(mSmsReceiver);
+        mResolver.unregisterContentObserver(mSmsObserver);
         getContentResolver().unregisterContentObserver(mSmsObserver);
         stopForeground(true);
     }
