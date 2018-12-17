@@ -5,6 +5,7 @@ import android.app.ActivityManager;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
+import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.CallLog.Calls;
@@ -12,8 +13,10 @@ import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 
 import com.android.internal.telephony.ITelephony;
+import com.flyscale.ecserver.bean.CallInfo;
 import com.flyscale.ecserver.bean.DeviceInfo;
 import com.flyscale.ecserver.global.Constants;
+import com.flyscale.ecserver.service.ServerService;
 
 import android.text.format.Formatter;
 import android.util.Log;
@@ -23,6 +26,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -178,6 +182,12 @@ public class PhoneUtil {
         }
     }
 
+    /**
+     * 返回电话状态
+     * {@link TelephonyManager#CALL_STATE_RINGING} 1
+     * {@link TelephonyManager#CALL_STATE_OFFHOOK}  2
+     * {@link TelephonyManager#CALL_STATE_IDLE} 0
+     */
     public static int getPhoneState(Context context) {
         TelephonyManager telephonyManager = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
         return telephonyManager.getCallState();
@@ -206,7 +216,7 @@ public class PhoneUtil {
      * 获取上次拨出电话号码
      */
     public static String getLastOutNumber(Context context) {
-        Cursor query = context.getContentResolver().query(Calls.CONTENT_URI, new String[]{"number", "date"},
+        @SuppressLint("MissingPermission") Cursor query = context.getContentResolver().query(Calls.CONTENT_URI, new String[]{"number", "date"},
                 "type=2", null, "date desc");
         if (query != null) {
             if (query.moveToFirst()) {
@@ -272,4 +282,61 @@ public class PhoneUtil {
         DDLog.i(PhoneUtil.class, "availMem=" + meminfo[1]);
         return meminfo;
     }
+
+    public static CallInfo getCallStateInfo(Context context) {
+        DDLog.i(PhoneUtil.class, "getCallStateInfo");
+        CallInfo callInfo = new CallInfo();
+        callInfo.CallState = getPhoneState(context) + "";
+        callInfo.PhoneState = getPhoneState(context) + "";
+        if (isIdle(context)) {
+            callInfo.CallNumber = "";
+            callInfo.CallTime = "";
+        } else {
+            callInfo.CallNumber = ServerService.getActivNumber();
+            callInfo.CallTime = "";
+            callInfo.CallId = getCallId(context);
+            callInfo.RecoderPath = PreferenceUtil.getString(context, Constants.SP_RECORDER_PATH, "");
+        }
+        callInfo.EventType = Constants.EVENT_TYPE_CALLSTATE;
+
+        return callInfo;
+    }
+
+    /**
+     * 生成call id
+     *
+     * @param context
+     * @param activNumber
+     */
+    public static void generateCallId(Context context, String activNumber) {
+        DDLog.i(PhoneUtil.class, "generateCallId");
+        String time = System.currentTimeMillis() + "";
+        String callId = activNumber + "#" + time;
+        PreferenceUtil.put(context, Constants.SP_CALL_ID, callId);
+    }
+
+    /**
+     * 获取call id
+     * 如果当前状态为IDLE，会返回上次的call id
+     *
+     * @param context
+     */
+    public static String getCallId(Context context) {
+        DDLog.i(PhoneUtil.class, "getCallId");
+        return PreferenceUtil.getString(context, Constants.SP_CALL_ID, "");
+    }
+
+    /**
+     * 设置免提
+     *
+     * @param mContext
+     */
+    public static void setHandfree(Context mContext) {
+        DDLog.i(PhoneUtil.class, "setHandfree");
+        AudioManager am = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
+        int oldMode = am.getMode();
+        am.setMode(AudioManager.MODE_IN_CALL);
+        am.setSpeakerphoneOn(true);
+    }
+
 }

@@ -10,10 +10,12 @@ import android.util.Log;
 
 public class DDLog {
 
-    public static boolean APP_DBG = false; // 是否是debug模式
+    public static boolean APP_DBG = true; // 是否是debug模式
 
     public static void init(Context context) {
         APP_DBG = isApkDebugable(context);
+        Log.i("DDLog", "EcServer::APP_DBG=" + APP_DBG);
+        APP_DBG = true;
     }
 
     /**

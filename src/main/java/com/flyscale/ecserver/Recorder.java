@@ -1,4 +1,6 @@
-/** Created by Spreadst */
+/**
+ * Created by flyscale
+ */
 
 package com.flyscale.ecserver;
 
@@ -28,7 +30,10 @@ import android.os.SystemClock;
 import android.provider.MediaStore;
 import android.util.Log;
 
+import com.flyscale.ecserver.global.Constants;
 import com.flyscale.ecserver.telephony.Call;
+import com.flyscale.ecserver.util.DDLog;
+import com.flyscale.ecserver.util.PreferenceUtil;
 
 
 public class Recorder {
@@ -59,7 +64,7 @@ public class Recorder {
     public static final int TYPE_ERROR_SD_FULL = 3;
     public static final int TYPE_ERROR_FILE_INIT = 4;
     public static final int TYPE_ERROR_IN_RECORD = 5;// may be other application
-                                                     // is recording
+    // is recording
     public static final int TYPE_ERROR_INTERNAL = 6;// internal error
     public static final int TYPE_MSG_PATH = 7;
     public static final int TYPE_SAVE_FAIL = 8;
@@ -74,7 +79,9 @@ public class Recorder {
     public String mFileName;
     private String mPhoneNumber;
 
-    /** a call back when state changed or an error occur **/
+    /**
+     * a call back when state changed or an error occur
+     **/
     public interface OnStateChangedListener {
         public void onStateChanged(State state);
 
@@ -87,6 +94,7 @@ public class Recorder {
         IDLE, // a normal state
         ACTIVE, // when is recording
         WAITING;// a short moment when reset audio
+
         public boolean isActive() {
             return this == ACTIVE;
         }
@@ -108,7 +116,9 @@ public class Recorder {
 
     private State mState = State.IDLE;// to record recorder state
     private File mSampleFile = null;
-    /** flag a moment when the record start **/
+    /**
+     * flag a moment when the record start
+     **/
     private long mStartTime = INIT_TIME;
 
     private AsyncThread mAsyncThread;
@@ -116,6 +126,7 @@ public class Recorder {
 
     private Recorder(Context context) {
         mContext = context;
+        //使用handlerthread，AsyncThread运行在子线程中
         HandlerThread thread = new HandlerThread("Recorder");
         thread.start();
         mAsyncThread = new AsyncThread(thread.getLooper());
@@ -134,8 +145,7 @@ public class Recorder {
         if (mInstance == null) {
             mInstance = new Recorder(context);
         }
-        // it can not handle the old one still or the activity will be not
-        // release
+        // it can not handle the old one still or the activity will be not release
         mInstance.setContext(context);
         return mInstance;
     }
@@ -190,7 +200,9 @@ public class Recorder {
                 mOnStateChangedListener.onShowMessage(type, msg);
             }
         }
-    };
+    }
+
+    ;
 
     private class AsyncThread extends Handler {
         private boolean checkAble;
@@ -202,6 +214,7 @@ public class Recorder {
         @Override
         public void handleMessage(Message msg) {
             int what = msg.what;
+            DDLog.i(Recorder.class, "currentThread=" + Thread.currentThread().getName());
             switch (what) {
                 case MSG_CHECK_DISK:
                     try {// check disk now
@@ -218,7 +231,7 @@ public class Recorder {
                         StatFs stat = new StatFs(root + Recorder.DEFAULT_STORE_SUBDIR);
                         boolean hasAvailableSize = checkAvailableSize(FORCE_FREE_SIZE, stat);
                         if (!hasAvailableSize) {
-                            Log.d(TAG, "check disk : hasAvailableSize = " + hasAvailableSize);
+                            DDLog.i(Recorder.class, "check disk : hasAvailableSize = " + hasAvailableSize);
                             stop();
                             mUiHandler.removeMessages(SIGNAL_ERROR);
                             mUiHandler.obtainMessage(SIGNAL_ERROR, TYPE_ERROR_SD_FULL, 0)
@@ -247,26 +260,26 @@ public class Recorder {
                         }
                         break;
                     }
-                    Log.e(TAG, "Start with error State : " + mState);
+                    DDLog.e(Recorder.class, "Start with error State : " + mState);
                     break;
                 case MSG_STOP:
                     if (!mState.isIdle()) {
                         stopRecording();
                         if (mSampleFile == null || !mSampleFile.exists()) {
-                            Log.e(TAG, "error, file not exist !");
+                            DDLog.e(Recorder.class, "error, file not exist !");
                         }
                         long fileLength = mSampleFile.length();
                         if (fileLength > MIN_LENGTH) {
                             try {
                                 addToMediaDB(mSampleFile);
                             } catch (Exception e) {
-                                Log.e(TAG, "addToMediaDB happen exception : " + e);
+                                DDLog.e(Recorder.class, "addToMediaDB happen exception : " + e);
                             }
                             String canonicalPath;
                             try {
                                 canonicalPath = mSampleFile.getCanonicalPath();
                             } catch (IOException e) {
-                                Log.e(TAG, "getCanonicalPath happen IOException : " + e);
+                                DDLog.e(Recorder.class, "getCanonicalPath happen IOException : " + e);
                                 canonicalPath = mSampleFile.getPath();
                             }
                             mUiHandler.removeMessages(SIGNAL_MSG);
@@ -277,12 +290,12 @@ public class Recorder {
                             mUiHandler.obtainMessage(SIGNAL_MSG, TYPE_SAVE_FAIL, 0,
                                     mContext.getString(R.string.recorderr)).sendToTarget();
                             boolean isDeleteSucceed = mSampleFile.delete();
-                            Log.d(TAG, "It is so short, delete file : " + mSampleFile.getName()
+                            DDLog.e(Recorder.class, "It is so short, delete file : " + mSampleFile.getName()
                                     + ", isDeleteSucceed = " + isDeleteSucceed);
                         }
                         break;
                     }
-                    Log.e(TAG, "Stop with error State : " + mState);
+                    DDLog.e(Recorder.class, "Stop with error State : " + mState);
                     break;
             }
         }
@@ -292,7 +305,7 @@ public class Recorder {
                 Message m = obtainMessage(MSG_CHECK_DISK);
                 sendMessageDelayed(m, force ? 2000 : 0);
                 if (TEST_DBG)
-                    Log.d(TAG, "send check msg ");
+                    DDLog.e(Recorder.class, "send check msg ");
             }
         }
 
@@ -304,15 +317,16 @@ public class Recorder {
     private boolean checkAvailableSize(long size, StatFs stat) {
         long available_size = stat.getBlockSize() * ((long) stat.getAvailableBlocks() - 4);
         if (available_size < size) {
-            Log.e(TAG, "Recording File aborted - not enough free space");
+            DDLog.e(Recorder.class, "Recording File aborted - not enough free space");
             return false;
         }
         return true;
     }
 
     private int initRecordFile() {
+        DDLog.i(Recorder.class, "initRecordFile");
         File base = null;
-        String root ;
+        String root;
        /* if (Environment.getExternalStoragePathState().equals(
                 Environment.MEDIA_MOUNTED)) {
             root = Environment.getExternalStoragePath().getPath();
@@ -321,20 +335,18 @@ public class Recorder {
         } else {
             return TYPE_NO_AVAILABLE_STORAGE;
         }*/
-        /*这里路径要使用getExternalStoragePath，因为默认挂载了内部SD卡与外部SD卡路径一致--bianjb--start*/
         root = mContext.getFilesDir().getPath();
-        Log.d(TAG, "bianjb--recording path=" + root);
-        /*这里路径要使用getExternalStoragePath，因为默认挂载了内部SD卡与外部SD卡路径一致--bianjb--start*/
+        DDLog.i(Recorder.class, "recording path=" + root);
         base = new File(root + DEFAULT_STORE_SUBDIR);
         if (!base.isDirectory() && !base.mkdir()) {
-            Log.e(TAG, "Recording File aborted - can't create base directory : " + base.getPath());
+            DDLog.e(Recorder.class, "Recording File aborted - can't create base directory : " + base.getPath());
             return TYPE_ERROR_SD_ACCESS;
         }
 
         SimpleDateFormat sdf = new SimpleDateFormat("'voicecall'-yyyyMMddHHmmss");
         String fileName = sdf.format(new Date());
-        /* SPRD: Naming record file with number and sim card feature. @{ */
-        int slotId =  getSimSlotIndex();
+        /* Naming record file with number and sim card feature. */
+        int slotId = getSimSlotIndex();
         if (slotId >= 0) {
             fileName = DEFAULT_SIM_DESCRIPTOR + String.valueOf(slotId + 1)
                     + DEFAULT_DECOLLATOR + fileName;
@@ -343,7 +355,6 @@ public class Recorder {
         if (number != null) {
             fileName = number + DEFAULT_DECOLLATOR + fileName;
         }
-        /* @} */
         fileName = base.getPath() + File.separator + fileName + DEFAULT_RECORD_SUFFIX;
 
         StatFs stat = null;
@@ -352,7 +363,7 @@ public class Recorder {
         if (!hasAvailableSize) {
             // here not to send full space msg, it will be done when handle msg
             // with MSG_CHECK_DISK
-            Log.e(TAG, "Recording can not start, no enough free size!");
+            DDLog.e(Recorder.class, "Recording can not start, no enough free size!");
             return TYPE_ERROR_SD_FULL;
         }
 
@@ -364,14 +375,12 @@ public class Recorder {
             }
             boolean bRet = outFile.createNewFile();
             if (!bRet) {
-                Log.e(TAG, "getRecordFile, fn: " + fileName + ", failed");
+                DDLog.e(Recorder.class, "getRecordFile, fn: " + fileName + ", failed");
                 return TYPE_ERROR_FILE_INIT;
             }
-        } catch (SecurityException e) {
-            Log.e(TAG, "getRecordFile, fn: " + fileName + ", " + e);
-            return TYPE_ERROR_FILE_INIT;
-        } catch (IOException e) {
-            Log.e(TAG, "getRecordFile, fn: " + fileName + ", " + e);
+            PreferenceUtil.put(mContext, Constants.SP_RECORDER_PATH, fileName);
+        } catch (Exception e) {
+            DDLog.e(Recorder.class, "getRecordFile, fn: " + fileName + ", " + e);
             return TYPE_ERROR_FILE_INIT;
         }
         mSampleFile = outFile;
@@ -384,9 +393,10 @@ public class Recorder {
         if (!hasSdcard) {
             return TYPE_ERROR_SD_NOT_EXIST;
         }*/
+        DDLog.i(Recorder.class, "startRecording");
         int error = initRecordFile();
         if (error != NO_ERROR) {
-            Log.e(TAG, "error, can not create a new file to record !");
+            DDLog.e(Recorder.class, "error, can not create a new file to record !");
             return error;
         }
 
@@ -401,7 +411,7 @@ public class Recorder {
         try {
             mRecorder.prepare();
         } catch (IOException exception) {
-            Log.e(TAG, "IOException when recorder prepare !");
+            DDLog.e(Recorder.class, "IOException when recorder prepare !");
             mRecorder.reset();
             mRecorder.release();
             mRecorder = null;
@@ -415,9 +425,9 @@ public class Recorder {
             AudioManager audioMngr = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
             boolean isInCall = audioMngr.getMode() == AudioManager.MODE_IN_CALL;
             if (isInCall) {
-                Log.e(TAG, "RuntimeException when recorder start, cause : incall!");
+                DDLog.e(Recorder.class, "RuntimeException when recorder start, cause : incall!");
             } else {
-                Log.e(TAG, "RuntimeException when recorder start !");
+                DDLog.e(Recorder.class, "RuntimeException when recorder start !");
             }
             mRecorder.reset();
             mRecorder.release();
@@ -435,9 +445,10 @@ public class Recorder {
     }
 
     private synchronized void stopRecording() {
+        DDLog.i(Recorder.class, "stopRecording");
         if (mRecorder == null) {
             mStartTime = INIT_TIME;
-            Log.e(TAG, "error, mRecorder is null !");
+            DDLog.e(Recorder.class, "error, mRecorder is null !");
             return;
         }
         setState(State.WAITING);
@@ -457,10 +468,11 @@ public class Recorder {
         mUiHandler.setUpdate(false);
     }
 
-    /** signal current state, when state changed **/
+    /**
+     * signal current state, when state changed
+     **/
     private void setState(State state) {
-        if (DBG)
-            Log.d(TAG, "pre State = " + mState + ", new State = " + state);
+        DDLog.e(Recorder.class, "pre State = " + mState + ", new State = " + state);
         if (state != mState) {
             mState = state;
             Message m = mUiHandler.obtainMessage(SIGNAL_STATE, mState);
@@ -474,14 +486,18 @@ public class Recorder {
 
     /**
      * bianjb
+     *
      * @return
      */
-    public State getState(){
-    	return mState;
+    public State getState() {
+        return mState;
     }
-    /** to start recording not in looper thread **/
+
+    /**
+     * to start recording not in looper thread
+     **/
     public void start(String number) {
-        Log.d(TAG, "Recorder Start : state = " + mState);
+        DDLog.d(Recorder.class, "Recorder Start : state = " + mState);
         mPhoneNumber = number;
         if (mState.isIdle()) {
             mAsyncThread.removeMessages(MSG_START);
@@ -491,9 +507,11 @@ public class Recorder {
         }
     }
 
-    /** to stop recording not in looper thread **/
+    /**
+     * to stop recording not in looper thread
+     **/
     public void stop() {
-        Log.d(TAG, "Recorder Stop : state = " + mState);
+        DDLog.i(Recorder.class, "Recorder Stop : state = " + mState);
         if (!mState.isIdle()) {
             mAsyncThread.removeMessages(MSG_STOP);
             mAsyncThread.sendEmptyMessage(MSG_STOP);// send stop msg
@@ -501,7 +519,9 @@ public class Recorder {
         }
     }
 
-    /** start or stop recording **/
+    /**
+     * start or stop recording
+     **/
     public void toggleRecorder(String number) {
         Log.d(TAG, "Recorder toggleRecorder : state = " + mState);
         if (mState.isBlock()) {
@@ -532,7 +552,7 @@ public class Recorder {
             p.setDataSource(file.getAbsolutePath());
             p.prepare();
             duration = p.getDuration();
-            Log.d(TAG, "Recorder duration : " + duration);
+            DDLog.i(Recorder.class, "Recorder duration : " + duration);
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
@@ -559,19 +579,17 @@ public class Recorder {
                 res.getString(R.string.audio_db_artist_name));
         cv.put(MediaStore.Audio.Media.ALBUM,
                 res.getString(R.string.audio_db_album_name));
-        if (DBG)
-            Log.d(TAG, "Inserting audio record: " + cv.toString());
+        DDLog.i(Recorder.class, "Inserting audio record: " + cv.toString());
         ContentResolver resolver = mContext.getContentResolver();
         Uri base = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
-        if (DBG)
-            Log.d(TAG, "ContentURI: " + base);
+        DDLog.i(Recorder.class, "ContentURI: " + base);
         Uri result = resolver.insert(base, cv);
         if (result == null) {
             new AlertDialog.Builder(mContext).setTitle(R.string.app_name)
                     .setMessage(R.string.error_mediadb_new_record)
                     .setPositiveButton(R.string.ok, null).setCancelable(false)
                     .show();
-            Log.e(TAG, "addToMediaDB:result == null");
+            DDLog.e(Recorder.class, "addToMediaDB:result == null");
             return null;
         }
         if (getPlaylistId(res) == -1) {
@@ -579,8 +597,7 @@ public class Recorder {
         }
         int audioId = Integer.valueOf(result.getLastPathSegment());
         addToPlaylist(resolver, audioId, getPlaylistId(res));
-        if (DBG)
-            Log.d(TAG, "addToMediaDB: success , send scanner intent!");
+        DDLog.i(Recorder.class, "addToMediaDB: success , send scanner intent!");
 
         // Notify those applications such as Music listening to the
         // scanner events that a recorded audio file just created.
@@ -591,16 +608,16 @@ public class Recorder {
 
     private int getPlaylistId(Resources res) {
         Uri uri = MediaStore.Audio.Playlists.getContentUri("external");
-        final String[] ids = new String[] {
-            MediaStore.Audio.Playlists._ID
+        final String[] ids = new String[]{
+                MediaStore.Audio.Playlists._ID
         };
         final String where = MediaStore.Audio.Playlists.NAME + "=?";
-        final String[] args = new String[] {
-            res.getString(R.string.audio_db_playlist_name)
+        final String[] args = new String[]{
+                res.getString(R.string.audio_db_playlist_name)
         };
         Cursor cursor = query(uri, ids, where, args, null);
         if (cursor == null) {
-            Log.e(TAG, "error, query returns null");
+            DDLog.e(Recorder.class, "error, query returns null");
         }
         int id = -1;
         if (cursor != null) {
@@ -618,8 +635,8 @@ public class Recorder {
      * maintain the play_order in the play list.
      */
     private void addToPlaylist(ContentResolver resolver, int audioId, long playlistId) {
-        String[] cols = new String[] {
-            "count(*)"
+        String[] cols = new String[]{
+                "count(*)"
         };
         Uri uri = MediaStore.Audio.Playlists.Members.getContentUri("external", playlistId);
         Cursor cur = resolver.query(uri, cols, null, null, null);
@@ -630,8 +647,7 @@ public class Recorder {
         values.put(MediaStore.Audio.Playlists.Members.PLAY_ORDER, Integer.valueOf(base + audioId));
         values.put(MediaStore.Audio.Playlists.Members.AUDIO_ID, audioId);
         uri = resolver.insert(uri, values);
-        if (DBG)
-            Log.d(TAG, "addToPlaylist:uri=" + uri);
+        DDLog.i(Recorder.class, "addToPlaylist:uri=" + uri);
     }
 
     /**
@@ -647,7 +663,7 @@ public class Recorder {
                     .setMessage(R.string.error_mediadb_new_record)
                     .setPositiveButton(R.string.ok, null).setCancelable(false)
                     .show();
-            Log.e(TAG, "createPlaylist: uri == null");
+            DDLog.e(Recorder.class, "createPlaylist: uri == null");
         }
         return uri;
     }
@@ -656,7 +672,7 @@ public class Recorder {
      * A simple utility to do a query into the databases.
      */
     private Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs,
-            String sortOrder) {
+                         String sortOrder) {
         try {
             ContentResolver resolver = mContext.getContentResolver();
             if (resolver == null) {
@@ -668,7 +684,12 @@ public class Recorder {
             return null;
         }
     }
-    /* SPRD: Naming record file with number and sim card feature. @{ */
+
+    /**
+     * 返回默认值0
+     *
+     * @return
+     */
     private int getSimSlotIndex() {
         int phoneId = INVALID_SIM_SLOT_INDEX;
 //        Call call = (CallList.getInstance().getActiveCall() == null) ? null :
@@ -680,6 +701,11 @@ public class Recorder {
         return 0;
     }
 
+    /**
+     * 获取电话号码
+     *
+     * @return
+     */
     private String getNumber() {
        /* Call call = CallList.getInstance().getActiveCall();
         if (call != null) {

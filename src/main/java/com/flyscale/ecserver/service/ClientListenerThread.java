@@ -21,18 +21,44 @@ import java.util.ArrayList;
  */
 
 public class ClientListenerThread extends Thread {
-    boolean isLoop = true;
+    private static final long MSG_NOTIFY_DIED_DELAYED = 100;    //延时发送线程死亡消息
+    private boolean mLoop = true;
     private ArrayList<Handler> mHandlerList = new ArrayList<>();
     public static final int MSG_FROM_CLIENT = 1001;
     private Socket mClientSocket;
     private ServerSocket mServerSocket;
     private final KeepAlive mKeepAliver;
     private static ClientListenerThread sInstance;
+    public static final int MSG_LISTENER_THREAD_DIED = 1002;
+    private boolean mRestart = true;
 
     public ClientListenerThread() {
         super(ClientListenerThread.class.getSimpleName());
         mKeepAliver = new KeepAlive();
         sInstance = this;
+    }
+
+    public void setLoop(boolean mLoop){
+        DDLog.i(ClientListenerThread.class, "setLoop");
+        this.mLoop = mLoop;
+    }
+
+    public void closeSocket() {
+        DDLog.i(ClientListenerThread.class, "closeSocket");
+        if (mServerSocket !=null){
+            if (!mServerSocket.isClosed()){
+                try {
+                    mServerSocket.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    public void setRestart(boolean restart) {
+        DDLog.i(ClientListenerThread.class, "setRestart,retart=" + restart);
+        mRestart = restart;
     }
 
     /**
@@ -108,7 +134,7 @@ public class ClientListenerThread extends Thread {
                 public void run() {
                     try {
                         DataOutputStream dos = new DataOutputStream(mClientSocket.getOutputStream());
-                        dos.write(msg.getBytes("UTF-8"));
+                        dos.write(msg.getBytes("UTF-8"));//保证收发一致UTF-8
                         dos.flush();
                         DDLog.i(ClientListenerThread.class, "send complete");
                     } catch (IOException e) {
@@ -132,15 +158,16 @@ public class ClientListenerThread extends Thread {
             mClientSocket = mServerSocket.accept();
             DDLog.i(ClientListenerThread.class, "accept");
             mKeepAliver.setListenerThread(sInstance);
-            mKeepAliver.startKeepAlive();
-            while (isLoop) {
+//            mKeepAliver.startKeepAlive();
+            while (mLoop) {
                 DataInputStream inputStream = new DataInputStream(mClientSocket.getInputStream());
                 DataOutputStream outputStream = new DataOutputStream(mClientSocket.getOutputStream());
 
                 int len = inputStream.read(buffer);
+                DDLog.i(ClientListenerThread.class, "read length=" + len);
                 if (len > 0) {
                     final String text = new String(buffer, 0, len);
-                    DDLog.i(ClientListenerThread.class, "text=" + text);
+                    DDLog.i(ClientListenerThread.class, "receiver from client: " + text);
                     if (mHandlerList != null) {
                         for (Handler handler : mHandlerList) {
                             Message message = handler.obtainMessage();
@@ -152,20 +179,30 @@ public class ClientListenerThread extends Thread {
                     String echo = Constants.ACK;
                     outputStream.write(echo.getBytes("UTF-8"));
                     outputStream.flush();
+                }else  {
+                    DDLog.w(ClientListenerThread.class, "client maybe got an eror,close socket!");
+                    mLoop = false;
                 }
 //                Thread.sleep(1000);
             }
             mClientSocket.close();
-            mHandlerList.clear();
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-
             if (mServerSocket != null) {
                 try {
+                    if (mRestart) {
+                        //发出通知，线程即将结束,主要用来重启线程
+                        for (Handler handler : mHandlerList) {
+                            Message message = handler.obtainMessage();
+                            message.what = MSG_LISTENER_THREAD_DIED;
+                            handler.sendMessageDelayed(message, MSG_NOTIFY_DIED_DELAYED);
+                        }
+                    }
                     mServerSocket.close();
                     mHandlerList.clear();
                     mKeepAliver.stopKeepAlive();
+                    DDLog.e(ClientListenerThread.class, "close socket!");
                 } catch (Exception e) {
                     e.printStackTrace();
                 }

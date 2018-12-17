@@ -51,9 +51,20 @@ public class Constants {
     public static final String ACTION_CALL_PRIVILEGED = "android.intent.action.CALL_PRIVILEGED";
 
     public static final String CMD_EVENT_TYPE = "EventType";
+    public static final String CMD_EVENT_VALUE = "EventValue";
     public static final String CMD_CALL_NUMBER = "CallNumber";
 
     public static final String AT_CLIENT_SP = "at_client_sp";
     public static final String FLAG_CALL_STATE = "call_state";
     public static final int LOCAL_PORT = 9000;
+    public static final String SP_CALL_ID = "sp_call_id";
+    public static final String SP_RECORDER_PATH = "sp_recorder_path";
+    public static final String SMS_BASE_URI = "content://sms";
+    public static final String SMS_INBOX_URI = "content://sms/inbox";
+    public static final String SMS_DELIVER_INTENT = "android.provider.Telephony.SMS_DELIVER";
+    public static final String SMS_RECEIVED_INTENT = "android.provider.Telephony.SMS_RECEIVED";
+    public static final String FLYSCALE_PHONE_STATE_INTENT = "com.android.phone.FLYSCALE_PHONE_STATE";
+    public static final String USB_STATE_INTENT = "android.hardware.usb.action.USB_STATE";
+
+    public static final String SEND_MSG_SUCCESS = "1";
 }
