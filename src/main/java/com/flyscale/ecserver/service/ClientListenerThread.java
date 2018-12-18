@@ -38,15 +38,15 @@ public class ClientListenerThread extends Thread {
         sInstance = this;
     }
 
-    public void setLoop(boolean mLoop){
+    public void setLoop(boolean mLoop) {
         DDLog.i(ClientListenerThread.class, "setLoop");
         this.mLoop = mLoop;
     }
 
     public void closeSocket() {
         DDLog.i(ClientListenerThread.class, "closeSocket");
-        if (mServerSocket !=null){
-            if (!mServerSocket.isClosed()){
+        if (mServerSocket != null) {
+            if (!mServerSocket.isClosed()) {
                 try {
                     mServerSocket.close();
                 } catch (IOException e) {
@@ -117,7 +117,7 @@ public class ClientListenerThread extends Thread {
         mHandlerList.add(handler);
     }
 
-    public void removeHandler(Handler handler){
+    public void removeHandler(Handler handler) {
         DDLog.i(ClientListenerThread.class, "removeHandler");
         mHandlerList.remove(handler);
     }
@@ -153,7 +153,8 @@ public class ClientListenerThread extends Thread {
 
         try {
             mServerSocket = new ServerSocket(Constants.LOCAL_PORT);
-            byte[] buffer = new byte[1024];
+            int buffSize = 1024;
+            byte[] buffer = new byte[buffSize];
             DDLog.i(ClientListenerThread.class, "waiting for client...");
             mClientSocket = mServerSocket.accept();
             DDLog.i(ClientListenerThread.class, "accept");
@@ -163,10 +164,25 @@ public class ClientListenerThread extends Thread {
                 DataInputStream inputStream = new DataInputStream(mClientSocket.getInputStream());
                 DataOutputStream outputStream = new DataOutputStream(mClientSocket.getOutputStream());
 
-                int len = inputStream.read(buffer);
-                DDLog.i(ClientListenerThread.class, "read length=" + len);
-                if (len > 0) {
-                    final String text = new String(buffer, 0, len);
+                int len = -1;
+                int sumLen = 0;
+                /*开始读取并拼接字符串到sb中*/
+                StringBuilder sb = new StringBuilder();
+                //如果读取的字符个数超过了缓冲区大小，就继续读
+                while ((len = inputStream.read(buffer)) >= buffSize) {
+                    DDLog.i(ClientListenerThread.class, "len=" + len);
+                    String str = new String(buffer, 0, len, "UTF-8");
+                    sb.append(str);
+                    sumLen += len;
+                }
+                sumLen += len;
+                if (sumLen > 0) {
+                    //最后一次读的一般小于缓冲区大小
+                    String str = new String(buffer, 0, len, "UTF-8");
+                    sb.append(str);
+                    /*拼接字符串完成*/
+                    DDLog.i(ClientListenerThread.class, "read sumLen=" + sumLen);
+                    final String text = sb.toString();
                     DDLog.i(ClientListenerThread.class, "receiver from client: " + text);
                     if (mHandlerList != null) {
                         for (Handler handler : mHandlerList) {
@@ -179,7 +195,7 @@ public class ClientListenerThread extends Thread {
                     String echo = Constants.ACK;
                     outputStream.write(echo.getBytes("UTF-8"));
                     outputStream.flush();
-                }else  {
+                } else {
                     DDLog.w(ClientListenerThread.class, "client maybe got an eror,close socket!");
                     mLoop = false;
                 }
