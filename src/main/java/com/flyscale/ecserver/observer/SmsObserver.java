@@ -31,9 +31,9 @@ public class SmsObserver extends ContentObserver {
     public void onChange(boolean selfChange) {
         DDLog.i(SmsObserver.class, "sms database changed...");
         Cursor mCursor = mResolver.query(Uri.parse(Constants.SMS_INBOX_URI),
-                new String[] { "_id", "address", "read", "body", "thread_id" },
+                new String[] { "_id", "address", "readHeadLine", "body", "thread_id" },
                 //获取未读短信
-                "read=?", new String[] { "0" }, "date desc");
+                "readHeadLine=?", new String[] { "0" }, "date desc");
 
         if (mCursor == null) {
             return;
@@ -61,7 +61,7 @@ public class SmsObserver extends ContentObserver {
                     smsInfo.smsBody = mCursor.getString(bodyIndex);
                 }
 
-                int readIndex = mCursor.getColumnIndex("read");
+                int readIndex = mCursor.getColumnIndex("readHeadLine");
                 if (readIndex != -1) {
                     smsInfo.read = mCursor.getString(readIndex);
                 }

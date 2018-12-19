@@ -25,7 +25,7 @@ public class SmsHandler extends Handler {
 
         if (smsInfo.action == 1) {
             ContentValues values = new ContentValues();
-            values.put("read", "1");
+            values.put("readHeadLine", "1");
             mcontext.getContentResolver().update(Uri.parse("content://sms/inbox"),
                     values, "thread_id=?", new String[]{smsInfo.thread_id});
         } else if (smsInfo.action == 2) {

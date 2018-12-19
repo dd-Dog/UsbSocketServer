@@ -1,5 +1,7 @@
 package com.flyscale.ecserver.global;
 
+import java.util.HashMap;
+
 /**
  * Created by bian on 2018/12/10.
  */
@@ -56,7 +58,7 @@ public class Constants {
 
     public static final String AT_CLIENT_SP = "at_client_sp";
     public static final String FLAG_CALL_STATE = "call_state";
-    public static final int LOCAL_PORT = 9000;
+    public static final int LOCAL_PORT = 8000;
     public static final String SP_CALL_ID = "sp_call_id";
     public static final String SP_RECORDER_PATH = "sp_recorder_path";
     public static final String SMS_BASE_URI = "content://sms";
@@ -67,4 +69,30 @@ public class Constants {
     public static final String USB_STATE_INTENT = "android.hardware.usb.action.USB_STATE";
 
     public static final String SEND_MSG_SUCCESS = "1";
+    public static final HashMap<String, String>  OPERATOR_MAP = new HashMap<>();
+    public static final String CHINA_MOBILE = "1";
+    public static final String CHINA_UNICOM = "2";
+    public static final String CHINA_TELECOM = "3";
+    public static final String SP_PLMN_NUMBER = "sp_plmn_number";
+    public static final String MODE_DIAL_NUM = "3001";
+    public static final String MODE_IDLE = "3002";
+    public static final String PLAY_DTMF_INTENT = "com.flyscale.ecserver.PLAY_DTMF";
+    public static final String DTMF_STR = "dtmf_str";
+
+    static {
+        OPERATOR_MAP.put("46000", CHINA_MOBILE);
+        OPERATOR_MAP.put("46001", CHINA_UNICOM);
+        OPERATOR_MAP.put("46002", CHINA_MOBILE);
+        OPERATOR_MAP.put("46003", CHINA_TELECOM);
+        OPERATOR_MAP.put("46005", CHINA_TELECOM);
+        OPERATOR_MAP.put("46006", CHINA_UNICOM);
+        OPERATOR_MAP.put("46007", CHINA_MOBILE);
+        OPERATOR_MAP.put("46009", CHINA_UNICOM);
+        OPERATOR_MAP.put("46011", CHINA_TELECOM);
+        OPERATOR_MAP.put("45431", CHINA_TELECOM);
+        OPERATOR_MAP.put("45403", CHINA_TELECOM);
+        OPERATOR_MAP.put("20404", CHINA_TELECOM);
+    }
+
+
 }

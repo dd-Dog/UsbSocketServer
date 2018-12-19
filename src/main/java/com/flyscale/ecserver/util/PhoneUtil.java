@@ -6,9 +6,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.media.AudioManager;
+import android.media.ToneGenerator;
 import android.net.Uri;
 import android.os.Build;
+import android.os.RemoteException;
 import android.provider.CallLog.Calls;
+import android.provider.Settings;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 
@@ -18,15 +21,12 @@ import com.flyscale.ecserver.bean.DeviceInfo;
 import com.flyscale.ecserver.global.Constants;
 import com.flyscale.ecserver.service.ServerService;
 
-import android.text.format.Formatter;
 import android.util.Log;
 
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Method;
-import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -49,7 +49,7 @@ public class PhoneUtil {
      * @param context
      */
     public static void answerCall(Context context) {
-        Log.d(TAG, "answerCall");
+        Log.d(TAG, "answerCall()");
         try {
             // 获取getITelephony的方法对象
             TelephonyManager telephonyManager = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
@@ -69,7 +69,7 @@ public class PhoneUtil {
      * @param context
      */
     public static void endCall(Context context) {
-        Log.d(TAG, "endCall");
+        Log.d(TAG, "endCall()");
         try {
             TelephonyManager telephonyManager = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
             // 获取getITelephony的方法对象
@@ -83,47 +83,56 @@ public class PhoneUtil {
     }
 
     public static boolean isRinging(Context context) {
-        Log.d(TAG, "isRinging");
+        boolean isRinging = false;
         try {
             TelephonyManager telephonyManager = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
             // 获取getITelephony的方法对象
             Method getITelephonyMethod = telephonyManager.getClass().getDeclaredMethod("getITelephony");
             getITelephonyMethod.setAccessible(true);
             ITelephony iTelephony = (ITelephony) getITelephonyMethod.invoke(telephonyManager);
-            return iTelephony.isRinging();
+            isRinging = iTelephony.isRinging();
         } catch (Exception e) {
             e.printStackTrace();
-            return false;
+            isRinging = false;
+        } finally {
+            Log.d(TAG, "isRinging(),isRinging=" + isRinging);
+            return isRinging;
         }
     }
 
     public static boolean isIdle(Context context) {
-        Log.d(TAG, "isIdle");
+        boolean isIdle = false;
         try {
             TelephonyManager telephonyManager = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
             // 获取getITelephony的方法对象
             Method getITelephonyMethod = telephonyManager.getClass().getDeclaredMethod("getITelephony");
             getITelephonyMethod.setAccessible(true);
             ITelephony iTelephony = (ITelephony) getITelephonyMethod.invoke(telephonyManager);
-            return iTelephony.isIdle();
+            return isIdle = iTelephony.isIdle();
         } catch (Exception e) {
             e.printStackTrace();
-            return false;
+            isIdle = false;
+        } finally {
+            Log.d(TAG, "isIdle(),isIdle=" + isIdle);
+            return isIdle;
         }
     }
 
     public static boolean isOffhook(Context context) {
-        Log.d(TAG, "isOffhook");
+        boolean isOffhook = false;
         try {
             TelephonyManager telephonyManager = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
             // 获取getITelephony的方法对象
             Method getITelephonyMethod = telephonyManager.getClass().getDeclaredMethod("getITelephony");
             getITelephonyMethod.setAccessible(true);
             ITelephony iTelephony = (ITelephony) getITelephonyMethod.invoke(telephonyManager);
-            return iTelephony.isOffhook();
+            isOffhook = iTelephony.isOffhook();
         } catch (Exception e) {
             e.printStackTrace();
-            return false;
+            isOffhook = false;
+        } finally {
+            Log.d(TAG, "isOffhook(),isOffhook=" + isOffhook);
+            return isOffhook;
         }
     }
 
@@ -133,7 +142,7 @@ public class PhoneUtil {
      * @param context
      */
     public static void silenceRinger(Context context) {
-        Log.d(TAG, "silenceRinger");
+        Log.d(TAG, "silenceRinger()");
         try {
             TelephonyManager telephonyManager = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
             // 获取getITelephony的方法对象
@@ -152,7 +161,7 @@ public class PhoneUtil {
      * @param context
      */
     public static void dial(Context context, String number) {
-        Log.d(TAG, "dial");
+        Log.d(TAG, "dial()");
         try {
             TelephonyManager telephonyManager = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
             Method getITelephonyMethod = telephonyManager.getClass().getDeclaredMethod("getITelephony");
@@ -228,6 +237,7 @@ public class PhoneUtil {
 
 
     public static DeviceInfo getDeviceInfo(Context context) {
+        DDLog.i(PhoneUtil.class, "getDeviceInfo()");
         DeviceInfo deviceInfo = new DeviceInfo();
         deviceInfo.DeviceName = Build.DEVICE;
         deviceInfo.ModelName = Build.MODEL;
@@ -251,7 +261,7 @@ public class PhoneUtil {
     }
 
     public static String[] getRamInfo() {
-        DDLog.i(PhoneUtil.class, "getRamInfo");
+        DDLog.i(PhoneUtil.class, "getRamInfo()");
         String[] meminfo = new String[2];
         try {
             FileReader fileReader = new FileReader("/proc/meminfo");
@@ -309,7 +319,7 @@ public class PhoneUtil {
      * @param activNumber
      */
     public static void generateCallId(Context context, String activNumber) {
-        DDLog.i(PhoneUtil.class, "generateCallId");
+        DDLog.i(PhoneUtil.class, "generateCallId()");
         String time = System.currentTimeMillis() + "";
         String callId = activNumber + "#" + time;
         PreferenceUtil.put(context, Constants.SP_CALL_ID, callId);
@@ -322,7 +332,7 @@ public class PhoneUtil {
      * @param context
      */
     public static String getCallId(Context context) {
-        DDLog.i(PhoneUtil.class, "getCallId");
+        DDLog.i(PhoneUtil.class, "getCallId()");
         return PreferenceUtil.getString(context, Constants.SP_CALL_ID, "");
     }
 
@@ -332,11 +342,83 @@ public class PhoneUtil {
      * @param mContext
      */
     public static void setHandfree(Context mContext) {
-        DDLog.i(PhoneUtil.class, "setHandfree");
+        DDLog.i(PhoneUtil.class, "setHandfree()");
         AudioManager am = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
         int oldMode = am.getMode();
         am.setMode(AudioManager.MODE_IN_CALL);
         am.setSpeakerphoneOn(true);
     }
 
+    /**
+     * @return true-放下 false-拿起
+     */
+    public static boolean getHookState() {
+        String stateStr = StorageUtil.readHeadLine("dev/flyscale_misc");
+        boolean state = true;
+        if (TextUtils.equals("0", stateStr)) {
+            state = true;
+        } else if (TextUtils.equals("1", stateStr)) {
+            state = false;
+        }
+        DDLog.i(PhoneUtil.class, "stateStr=" + stateStr);
+        return state;
+    }
+
+    /**
+     * 获取免提状态
+     *
+     * @param context
+     * @return
+     */
+    public static boolean getHandfree(Context context) {
+
+        boolean handFree = false;
+        boolean hookState = getHookState();
+        if (hookState) { //如果手柄未抬起，且当前处于拨号界面或者通话中，则视为免提状态
+            //获取当前最上层的Activity
+            ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+            assert am != null;
+            //获取最位于栈顶的task的info
+            ActivityManager.RunningTaskInfo runningTaskInfo = am.getRunningTasks(1).get(0);
+            String className = runningTaskInfo.topActivity.getClassName();
+            DDLog.i(PhoneUtil.class, "className=" + className);
+            if (TextUtils.equals(className, "com.android.dialer.DialtactsActivity")) {
+                Cursor alarms = context.getContentResolver().query(Uri.parse("content://com.android.dialer.provider/settings"), null, null, null,
+                        null);
+                if (alarms != null) {
+                    while (alarms.moveToNext()) {
+                        String dialtacts_content = alarms.getString(alarms.getColumnIndex("dialtacts_content"));
+                        DDLog.i(PhoneUtil.class, "dialtacts_content=" + dialtacts_content);
+                        if (TextUtils.equals(Constants.MODE_IDLE, dialtacts_content)) {
+                            //如果是IDLE
+                            handFree = false;
+                        } else if (TextUtils.equals(Constants.MODE_DIAL_NUM, dialtacts_content)) {
+                            //如果是拨号界面
+                            handFree = true;
+                        }
+                    }
+                } else {
+                    handFree = true;
+                }
+            } else if (isOffhook(context) || isRinging(context)) {
+                handFree = true;
+            } else {
+                handFree = false;
+            }
+        } else {//如果手柄抬起状态，则判断当前是SPEAKER状态视为抬起免提
+            AudioManager am = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+            assert am != null;
+            handFree = am.isSpeakerphoneOn();
+        }
+        DDLog.i(PhoneUtil.class, "getHandfree(),handFree=" + handFree);
+        return handFree;
+    }
+
+    public static String getSimcardState(Context context) {
+        TelephonyManager tm = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
+        assert tm != null;
+        int simState = tm.getSimState();
+        DDLog.i(PhoneUtil.class, "getSimcardState(),simState=" + simState);
+        return simState + "";
+    }
 }

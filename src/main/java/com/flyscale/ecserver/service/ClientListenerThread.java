@@ -181,7 +181,7 @@ public class ClientListenerThread extends Thread {
                     String str = new String(buffer, 0, len, "UTF-8");
                     sb.append(str);
                     /*拼接字符串完成*/
-                    DDLog.i(ClientListenerThread.class, "read sumLen=" + sumLen);
+                    DDLog.i(ClientListenerThread.class, "readHeadLine sumLen=" + sumLen);
                     final String text = sb.toString();
                     DDLog.i(ClientListenerThread.class, "receiver from client: " + text);
                     if (mHandlerList != null) {

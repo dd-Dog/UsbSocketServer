@@ -5,7 +5,11 @@ import android.os.Environment;
 import android.os.StatFs;
 import android.text.format.Formatter;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 
 /**
  * Created by bian on 2018/8/17.
@@ -69,4 +73,29 @@ public class StorageUtil {
         long availableBlocks = stat.getAvailableBlocks();
         return Formatter.formatFileSize(context, blockSize * availableBlocks);
     }
+
+    /**
+     * @param sysPath
+     * 为节点映射到的实际路径
+     * @return
+     */
+    public static String readHeadLine(String sysPath) {
+        try {
+            Runtime runtime = Runtime.getRuntime();
+            Process process = runtime.exec("cat " + sysPath); // 此处进行读操作
+            InputStream is = process.getInputStream();
+            InputStreamReader isr = new InputStreamReader(is);
+            BufferedReader br = new BufferedReader(isr);
+            String line;
+            while (null != (line = br.readLine())) {
+                DDLog.w(StorageUtil.class, "readHeadLine data:" + line);
+                return line;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            DDLog.w(StorageUtil.class, e.getMessage());
+        }
+        return null;
+    }
+
 }

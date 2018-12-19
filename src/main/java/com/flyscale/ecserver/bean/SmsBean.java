@@ -24,7 +24,7 @@ public class SmsBean extends EventInfo{
     public String toString() {
         return "SmsBean [_id=" + _id + ", thread_id=" + thread_id
                 + ", smsAddress=" + smsAddress + ", smsBody=" + smsBody
-                + ", read=" + read + ", action=" + action + "]";
+                + ", readHeadLine=" + read + ", action=" + action + "]";
     }
 
 

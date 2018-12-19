@@ -3,6 +3,16 @@ apply plugin: 'com.android.application'
 android {
     compileSdkVersion 28
 
+    signingConfigs {
+        config {
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+            storeFile file('F:/9820A/platform/keystore/platform.keystore')
+//            storeFile file('C:/Users/bian/.android/debug.keystore')
+            storePassword 'android'
+        }
+    }
+
     defaultConfig {
         applicationId "com.flyscale.ecserver"
         minSdkVersion 19
@@ -12,12 +22,16 @@ android {
 
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
 
+
     }
 
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            signingConfig signingConfigs.config
         }
     }
 

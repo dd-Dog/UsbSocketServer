@@ -1,5 +1,8 @@
 package com.flyscale.ecserver.bean;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 /**
  * Created by bian on 2018/12/10.
  */
@@ -24,6 +27,15 @@ public class SimInfo extends EventInfo {
 
     @Override
     public String toJson() {
+        try {
+            JSONObject jsonObject = new JSONObject();
+            jsonObject.put("EventType", EventType);
+            jsonObject.put("SimTypeName", SimTypeName);
+            jsonObject.put("SimState", SimState);
+            return jsonObject.toString();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
         return null;
     }
 }

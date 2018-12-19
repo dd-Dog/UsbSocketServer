@@ -5,10 +5,12 @@ import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.hardware.usb.UsbManager;
 import android.net.Uri;
 import android.os.Binder;
@@ -16,6 +18,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
+import android.os.RemoteException;
 import android.support.annotation.Nullable;
 import android.telephony.PhoneStateListener;
 import android.telephony.SmsManager;
@@ -30,13 +33,16 @@ import com.flyscale.ecserver.SmsHandler;
 import com.flyscale.ecserver.bean.CallInfo;
 import com.flyscale.ecserver.bean.DeviceInfo;
 import com.flyscale.ecserver.bean.EventInfo;
+import com.flyscale.ecserver.bean.SimInfo;
 import com.flyscale.ecserver.bean.SmsInfo;
 import com.flyscale.ecserver.global.Constants;
 import com.flyscale.ecserver.observer.SmsObserver;
 import com.flyscale.ecserver.telephony.Call;
+import com.flyscale.ecserver.telephony.TelephonyIntents;
 import com.flyscale.ecserver.util.DDLog;
 import com.flyscale.ecserver.util.JsonUtil;
 import com.flyscale.ecserver.util.PhoneUtil;
+import com.flyscale.ecserver.util.PreferenceUtil;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -109,10 +115,14 @@ public class ServerService extends Service {
         mSmsObserver = new SmsObserver(mResolver, new SmsHandler(this));
         mResolver.registerContentObserver(Uri.parse(Constants.SMS_BASE_URI), true, mSmsObserver);
 
+
+        //每次重启服务，需要重启开启线程，避免因为异常导致APP退出，线程仍然空跑的问题
+        stopServerTherad(false);
+        startServerThread();
         return super.onStartCommand(intent, flags, startId);
     }
 
-    private class ServiceHandler extends Handler{
+    private class ServiceHandler extends Handler {
         @Override
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
@@ -140,13 +150,14 @@ public class ServerService extends Service {
      * @param msg
      * @throws JSONException
      */
-    private static void handleCmdFromClient(Message msg) throws JSONException {
+    private void handleCmdFromClient(Message msg) throws JSONException {
         String cmdStr = (String) msg.obj;
         DDLog.i(ServerService.class, "cmdStr=" + cmdStr);
         if (JsonUtil.isJson(cmdStr, 0)) {
             JSONObject cmdObj = (JSONObject) new JSONTokener(cmdStr).nextValue();
             String eventType = cmdObj.getString(Constants.CMD_EVENT_TYPE);
             DDLog.i(ServerService.class, "EventType=" + eventType);
+            EventInfo eventInfo = null;
             switch (eventType) {
                 case Constants.EVENT_TYPE_DIALER:   //拨号
                     String number = cmdObj.getString(Constants.CMD_CALL_NUMBER);
@@ -171,22 +182,36 @@ public class ServerService extends Service {
                     //TODO
                     break;
                 case Constants.EVENT_TYPE_SUFFIXNUMBER:  //拨打分机号
-                    //TODO
+                    String subPhone = cmdObj.getString(Constants.CMD_EVENT_VALUE);
+                    Intent dtmfBro = new Intent(Constants.PLAY_DTMF_INTENT);
+                    dtmfBro.putExtra(Constants.DTMF_STR, subPhone);
+                    sendBroadcast(dtmfBro);
                     break;
                 case Constants.EVENT_TYPE_CALLSTATE:    //获取电话状态
                     CallInfo callInfo = PhoneUtil.getCallStateInfo(mContext);
                     mServerThread.sendMsg2Client(callInfo.toJson());
                     break;
-                case Constants.EVENT_TYPE_KEYF3:    //电话手柄动作
-                    //TODO
+                case Constants.EVENT_TYPE_KEYF3:    //电话手柄状态
+                    boolean hookState = PhoneUtil.getHookState();
+                    eventInfo = new EventInfo(Constants.EVENT_TYPE_KEYF3, String.valueOf(hookState));
+                    mServerThread.sendMsg2Client(eventInfo.toJson());
                     break;
-                case Constants.EVENT_TYPE_KEYCALL:   //免提动作
-                    //TODO
+                case Constants.EVENT_TYPE_KEYCALL:   //免提状态
+                    boolean handfree = PhoneUtil.getHandfree(mContext);
+                    eventInfo = new EventInfo(Constants.EVENT_TYPE_KEYCALL, String.valueOf(handfree));
+                    mServerThread.sendMsg2Client(eventInfo.toJson());
                     break;
                 case Constants.EVENT_TYPE_SIMCARD:  //SIM卡类型
-                    //TODO
+                    String plmnNumeric = PreferenceUtil.getString(mContext, Constants.SP_PLMN_NUMBER, "");
+                    String operator = Constants.OPERATOR_MAP.get(plmnNumeric);
+                    String simcardState = PhoneUtil.getSimcardState(mContext);
+                    SimInfo simInfo = new SimInfo();
+                    simInfo.SimState = simcardState;
+                    simInfo.SimTypeName = operator;
+                    simInfo.EventType = Constants.EVENT_TYPE_SIMCARD;
+                    mServerThread.sendMsg2Client(simInfo.toJson());
                     break;
-                case Constants.EVENT_TYPE_OPENSPEAKERON:    //开启免提
+                case Constants.EVENT_TYPE_OPENSPEAKERON:   //开启免提
                     PhoneUtil.setHandfree(mContext);
                     break;
                 case Constants.EVENT_TYPE_QUERYSMS: //查询系统所有短信
@@ -195,9 +220,10 @@ public class ServerService extends Service {
                     sendMsg(cmdObj.getString(Constants.CMD_EVENT_VALUE));
                     break;
                 case Constants.EVENT_TYPE_INSTALLAPP:   //更新service app
+                    //TODO
                     break;
                 case Constants.EVENT_TYPE_HIDEDIALNUMBER:   //隐藏号码
-
+                    //TODO
                     break;
             }
         } else {
@@ -206,6 +232,7 @@ public class ServerService extends Service {
     }
 
     private static void sendMsg(String cmdValue) {
+
         DDLog.i(ServerService.class, "sendMsg");
         String[] valueArr = cmdValue.split(";");
         if (!TextUtils.isEmpty(valueArr[0])) {
@@ -226,7 +253,7 @@ public class ServerService extends Service {
      */
     private static void sendSMS(String phoneNumber, String message) {
         DDLog.i(ServerService.class, "phoneNumber=" + phoneNumber + ",message=" + message);
-        if (TextUtils.isEmpty(phoneNumber) || TextUtils.isEmpty(message)){
+        if (TextUtils.isEmpty(phoneNumber) || TextUtils.isEmpty(message)) {
             DDLog.i(ServerService.class, "phoneNumber or message should not be empty");
             mServerThread.sendMsg2Client(new EventInfo("-1").toJson());
             return;
@@ -352,6 +379,12 @@ public class ServerService extends Service {
             } else if (TextUtils.equals(intent.getAction(), Constants.SMS_DELIVER_INTENT) ||
                     TextUtils.equals(intent.getAction(), Constants.SMS_RECEIVED_INTENT)) {
                 getMsgFromIntent(intent.getExtras());
+            } else if (TextUtils.equals(intent.getAction(), TelephonyIntents.ACTION_PLMN_INTENT)) {
+                String plmnLong = intent.getStringExtra(TelephonyIntents.PLMN_LONG);
+                String plmnShort = intent.getStringExtra(TelephonyIntents.PLMN_SHORT);
+                String plmnNumeric = intent.getStringExtra(TelephonyIntents.PLMN_NUMERIC);
+                DDLog.i(ServerReceiver.class, "plmnLong=" + plmnLong + ",plmnShort=" + plmnShort + ",plmnNumeric=" + plmnNumeric);
+                PreferenceUtil.put(mContext, Constants.SP_PLMN_NUMBER, plmnNumeric);
             }
         }
 
@@ -441,7 +474,7 @@ public class ServerService extends Service {
         } else {
             if (mServerThread.isAlive()) {
                 DDLog.w(ServerService.class, "ClientListenerThread is running,only one instance is permitted");
-            }else {
+            } else {
                 mServerThread = new ClientListenerThread();
                 mServerThread.addHandler(mHandler);
                 mServerThread.start();
@@ -455,7 +488,10 @@ public class ServerService extends Service {
         mServerReceiver = new ServerReceiver();
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(Constants.USB_STATE_INTENT);
+        //平台自定义广播
         intentFilter.addAction(Constants.FLYSCALE_PHONE_STATE_INTENT);
+        intentFilter.addAction(TelephonyIntents.ACTION_PLMN_INTENT);
+
         intentFilter.addAction(Constants.SMS_DELIVER_INTENT);
         intentFilter.addAction(Constants.SMS_RECEIVED_INTENT);
         intentFilter.addAction("android.hardware.usb.action.USB_DEVICE_DETACHED");
@@ -471,7 +507,7 @@ public class ServerService extends Service {
 
     @Override
     public void onDestroy() {
-        DDLog.i(ServerService.class, "onDestroy");
+        DDLog.i(ServerService.class, "onDestroy()");
         super.onDestroy();
         stopServerTherad(false);
         mTm.listen(mPhoneStateListener, PhoneStateListener.LISTEN_NONE);

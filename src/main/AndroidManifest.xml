@@ -17,8 +17,11 @@
     <uses-permission android:name="android.permission.READ_SMS"/>
     <uses-permission android:name="android.permission.SEND_SMS"/>
     <uses-permission android:name="android.permission.RECEIVE_SMS"/>
-    
+    <uses-permission android:name="android.permission.GET_TASKS"/>
 
+    <!--绑定call service 声明权限-->
+    <permission android:name="android.permission.BIND_CALL_SERVICE" />
+    <uses-permission android:name="android.permission.BIND_CALL_SERVICE" />
 
     <!--persistent 设置常驻内存-->
     <application
