@@ -193,7 +193,7 @@ public class ClientListenerThread extends Thread {
                         }
                     }
                     String echo = Constants.ACK;
-                    outputStream.write(echo.getBytes("UTF-8"));
+//                    outputStream.write(echo.getBytes("UTF-8"));
                     outputStream.flush();
                 } else {
                     DDLog.w(ClientListenerThread.class, "client maybe got an eror,close socket!");

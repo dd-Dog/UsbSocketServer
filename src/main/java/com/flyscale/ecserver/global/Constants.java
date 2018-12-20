@@ -1,5 +1,7 @@
 package com.flyscale.ecserver.global;
 
+import android.content.Context;
+
 import java.util.HashMap;
 
 /**
@@ -78,6 +80,10 @@ public class Constants {
     public static final String MODE_IDLE = "3002";
     public static final String PLAY_DTMF_INTENT = "com.flyscale.ecserver.PLAY_DTMF";
     public static final String DTMF_STR = "dtmf_str";
+    public static final String ACTION_HIDE_NUMBER = "com.flyscale.ecserver.HIDE_NUMBER";
+    public static final String HIDE_NUMBER = "hide_number";
+    public static final String HIDE_NUMBER_UNABLED = "0";
+    public static final String HIDE_NUMBER_ENABLED = "1";
 
     static {
         OPERATOR_MAP.put("46000", CHINA_MOBILE);

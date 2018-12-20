@@ -19,13 +19,13 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.RemoteException;
+import android.provider.Settings;
 import android.support.annotation.Nullable;
 import android.telephony.PhoneStateListener;
 import android.telephony.SmsManager;
 import android.telephony.SmsMessage;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
-import android.widget.Toast;
 
 import com.flyscale.ecserver.MainActivity;
 import com.flyscale.ecserver.Recorder;
@@ -220,17 +220,8 @@ public class ServerService extends Service {
                         @Override
                         public void onQuerySuccess(String result) {
                             DDLog.i(QueryCompeleteCallback.class, "onQuerySuccess(),result=" + result);
-                            try {
-                                JSONObject jsonObject = new JSONObject();
-                                jsonObject.put(Constants.CMD_EVENT_TYPE, Constants.EVENT_TYPE_QUERYSMS);
-                                jsonObject.put(Constants.CMD_EVENT_VALUE, result);
-                                mServerThread.sendMsg2Client(jsonObject.toString());
-                            } catch (JSONException e) {
-                                e.printStackTrace();
-                            }
-
+                            mServerThread.sendMsg2Client(result);
                         }
-
                         @Override
                         public void onQueryFailure(Exception e) {
 
@@ -244,7 +235,22 @@ public class ServerService extends Service {
                     //TODO
                     break;
                 case Constants.EVENT_TYPE_HIDEDIALNUMBER:   //隐藏所有显示号码
-                    //TODO
+                    String hideStr = cmdObj.getString(Constants.CMD_EVENT_VALUE);
+                    boolean hide = false;
+                    if (hideStr != null) {
+                        if (hideStr.equals(Constants.HIDE_NUMBER_ENABLED)) {
+                            hide = true;
+                        } else if (hideStr.equals(Constants.HIDE_NUMBER_UNABLED)) {
+                            hide = false;
+                        }
+                        Intent hideNumber = new Intent(Constants.ACTION_HIDE_NUMBER);
+                        hideNumber.putExtra(Constants.HIDE_NUMBER, hide);
+                        sendBroadcast(hideNumber);
+                    }
+
+                    Settings.Global.putInt(getContentResolver(), Constants.HIDE_NUMBER, hide ? 1 : 0);
+                    int anInt = Settings.Global.getInt(getContentResolver(), Constants.HIDE_NUMBER, 0);
+                    DDLog.i(ServerService.class, "hide_number=" + anInt);
                     break;
             }
         } else {
@@ -350,7 +356,6 @@ public class ServerService extends Service {
         @Override
         public void onReceive(Context context, Intent intent) {
             DDLog.i(ServerReceiver.class, "action=" + intent.getAction());
-            Toast.makeText(mContext, intent.getAction(), Toast.LENGTH_SHORT).show();
             if (TextUtils.equals(intent.getAction(), Constants.USB_STATE_INTENT)) {
                 boolean connected = intent.getExtras().getBoolean("connected");
                 DDLog.i(ServerReceiver.class, "USB connected=" + connected);

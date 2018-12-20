@@ -25,12 +25,17 @@ import com.flyscale.ecserver.service.ServerService;
 import android.util.Log;
 
 import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -434,7 +439,7 @@ public class PhoneUtil {
 
     /**
      * 读取收件箱和发件箱的短信
-     *
+     * 并生成json数据
      * @param context
      */
     public static void readInboxOutBoxMsg(final Context context, final QueryCompeleteCallback callback) {
@@ -444,15 +449,26 @@ public class PhoneUtil {
             public void run() {
                 ArrayList<SmsInfo> inboxSmsInfo = SmsUtil.getSmsInfo(context, SmsUtil.SMS_URI_INBOX);
                 ArrayList<SmsInfo> outboxSmsInfo = SmsUtil.getSmsInfo(context, SmsUtil.SMS_URI_SEND);
-                JSONArray jsonArray = new JSONArray();
+                List<Map> list = new ArrayList<Map>();
+                JSONObject jsonObject = new JSONObject();
+//                JSONArray jsonArray = new JSONArray();
+
+                Map<String, String> map = null;
                 for (SmsInfo smsInfo : inboxSmsInfo) {
-                    jsonArray.put(smsInfo.toJsonObj());
+                    list.add(smsInfo.toMap());
                 }
                 for (SmsInfo smsInfo : outboxSmsInfo) {
-                    jsonArray.put(smsInfo.toJsonObj());
+                    list.add(smsInfo.toMap());
                 }
+                try {
+                    jsonObject.put(Constants.CMD_EVENT_VALUE, list);
+                    jsonObject.put(Constants.CMD_EVENT_TYPE, Constants.EVENT_TYPE_QUERYSMS);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+
                 if (callback != null){
-                    callback.onQuerySuccess(jsonArray.toString());
+                    callback.onQuerySuccess(jsonObject.toString());
                 }
             }
         });

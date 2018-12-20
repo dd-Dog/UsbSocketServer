@@ -3,6 +3,9 @@ package com.flyscale.ecserver.bean;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Created by bian on 2018/12/17.
  */
@@ -53,6 +56,18 @@ public class SmsInfo extends EventInfo {
         }
         return null;
     }
+
+    public Map toMap(){
+        HashMap<String, String> map = new HashMap<>();
+        map.put("Sms", Sms);
+        map.put("Id", Id);
+        map.put("Type", Type);
+        map.put("PhoneNumber", PhoneNumber);
+        map.put("Time", Time);
+        map.put("EventType", EventType);
+        return map;
+    }
+
 
     public void setDate(long date) {
         this.Time = date + "";
