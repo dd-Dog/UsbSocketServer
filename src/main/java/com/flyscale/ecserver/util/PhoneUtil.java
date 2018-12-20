@@ -18,15 +18,19 @@ import android.text.TextUtils;
 import com.android.internal.telephony.ITelephony;
 import com.flyscale.ecserver.bean.CallInfo;
 import com.flyscale.ecserver.bean.DeviceInfo;
+import com.flyscale.ecserver.bean.SmsInfo;
 import com.flyscale.ecserver.global.Constants;
 import com.flyscale.ecserver.service.ServerService;
 
 import android.util.Log;
 
+import org.json.JSONArray;
+
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -414,11 +418,43 @@ public class PhoneUtil {
         return handFree;
     }
 
+    /**
+     * 获取Sim卡状态
+     *
+     * @param context
+     * @return
+     */
     public static String getSimcardState(Context context) {
         TelephonyManager tm = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
         assert tm != null;
         int simState = tm.getSimState();
         DDLog.i(PhoneUtil.class, "getSimcardState(),simState=" + simState);
         return simState + "";
+    }
+
+    /**
+     * 读取收件箱和发件箱的短信
+     *
+     * @param context
+     */
+    public static void readInboxOutBoxMsg(final Context context, final QueryCompeleteCallback callback) {
+        DDLog.i(PhoneUtil.class, "readInboxOutBoxMsg()");
+        ThreadPool.getInstance().execute(new Runnable() {
+            @Override
+            public void run() {
+                ArrayList<SmsInfo> inboxSmsInfo = SmsUtil.getSmsInfo(context, SmsUtil.SMS_URI_INBOX);
+                ArrayList<SmsInfo> outboxSmsInfo = SmsUtil.getSmsInfo(context, SmsUtil.SMS_URI_SEND);
+                JSONArray jsonArray = new JSONArray();
+                for (SmsInfo smsInfo : inboxSmsInfo) {
+                    jsonArray.put(smsInfo.toJsonObj());
+                }
+                for (SmsInfo smsInfo : outboxSmsInfo) {
+                    jsonArray.put(smsInfo.toJsonObj());
+                }
+                if (callback != null){
+                    callback.onQuerySuccess(jsonArray.toString());
+                }
+            }
+        });
     }
 }

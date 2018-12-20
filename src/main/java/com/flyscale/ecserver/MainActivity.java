@@ -78,7 +78,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        unbindService(mServerConnection);
     }
 
     Handler handler = new Handler() {

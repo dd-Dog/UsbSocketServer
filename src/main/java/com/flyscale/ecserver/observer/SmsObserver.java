@@ -69,7 +69,7 @@ public class SmsObserver extends ContentObserver {
                 // 根据你的拦截策略，判断是否不对短信进行操作;将短信设置为已读;将短信删除
                 DDLog.i(SmsObserver.class, "获取的短信内容为："+smsInfo.toString());
                 Message msg = smsHandler.obtainMessage();
-                smsInfo.action = 2;// 0不对短信进行操作;1将短信设置为已读;2将短信删除
+                smsInfo.action = 0;// 0不对短信进行操作;1将短信设置为已读;2将短信删除
                 msg.obj = smsInfo;
                 smsHandler.sendMessage(msg);
             }

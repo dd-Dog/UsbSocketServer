@@ -5,6 +5,25 @@ import android.text.TextUtils;
 public class JsonUtil {
 
     /**
+     * 判断是否是JSONObject格式
+     * @param json
+     * @return
+     */
+    public static boolean isJsonObj(String json) {
+        return isJson(json, 0) && json.startsWith("{");
+    }
+
+    /**
+     * 判断是否是JSONArray格式
+     * @param json
+     * @return
+     */
+    public static boolean isJsonArray(String json){
+        return isJson(json, 0) && json.startsWith("[");
+    }
+
+
+    /**
      * 判断Json字符串开始和结束字符
      * @param json
      * @return
