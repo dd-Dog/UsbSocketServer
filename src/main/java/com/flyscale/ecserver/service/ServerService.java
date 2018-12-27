@@ -5,24 +5,20 @@ import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
-import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.ServiceConnection;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.hardware.usb.UsbManager;
-import android.net.Uri;
 import android.os.Binder;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
-import android.os.RemoteException;
 import android.provider.Settings;
-import android.support.annotation.Nullable;
 import android.telephony.PhoneStateListener;
 import android.telephony.SmsManager;
 import android.telephony.SmsMessage;
@@ -52,7 +48,6 @@ import org.json.JSONObject;
 import org.json.JSONTokener;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.List;
 
 
@@ -235,7 +230,12 @@ public class ServerService extends Service {
                     sendMsg(cmdObj.getString(Constants.CMD_EVENT_VALUE));
                     break;
                 case Constants.EVENT_TYPE_INSTALLAPP:   //更新service app
-                    //TODO
+                    String apkPath = cmdObj.getString(Constants.CMD_EVENT_VALUE);
+                    Intent updateIntent = new Intent(Constants.ACTION_UPDATE_APP);
+                    updateIntent.putExtra("path", apkPath);
+                    updateIntent.putExtra("pkgname", getPackageName());
+                    DDLog.i(ServerService.class, "pkgname=" + getPackageName());
+                    sendBroadcast(updateIntent);
                     break;
                 case Constants.EVENT_TYPE_HIDEDIALNUMBER:   //隐藏所有显示号码
                     String hideStr = cmdObj.getString(Constants.CMD_EVENT_VALUE);
@@ -258,13 +258,28 @@ public class ServerService extends Service {
                 case Constants.EVENT_TYPE_PLAY2CALL:
                     //TODO-播放音频文件到mic
                     break;
-                case Constants.EVENT_TYPE_SENDFILE:
-                    //TODO 发送文件到客户端
+                case Constants.EVENT_TYPE_SEND_FILE:
                     String filePath = cmdObj.getString(Constants.CMD_EVENT_VALUE);
                     mServerThread.sendFile(filePath);
                     DDLog.i(ServerService.class, "start download server");
-                    EventInfo ok = new EventInfo(Constants.EVENT_TYPE_SENDFILE, "ok");
+                    EventInfo ok = new EventInfo(Constants.EVENT_TYPE_SEND_FILE, "ok");
                     mServerThread.sendMsg2Client(ok.toJson());
+                    break;
+                case Constants.EVENT_TYPE_GET_APPINFO:
+                    PackageManager pm = getPackageManager();
+                    com.flyscale.ecserver.bean.PackageInfo packageBean = new com.flyscale.ecserver.bean.PackageInfo();
+                    try {
+                        PackageInfo packageInfo = pm.getPackageInfo(getPackageName(), 0);
+                        ApplicationInfo applicationInfo = packageInfo.applicationInfo;
+                        packageBean.dataDir = applicationInfo.dataDir;
+                        packageBean.processName = applicationInfo.processName;
+                        packageBean.versionName = packageInfo.versionName;
+                    } catch (PackageManager.NameNotFoundException e) {
+                        e.printStackTrace();
+                    } finally {
+                        mServerThread.sendMsg2Client(packageBean.toJson());
+                        DDLog.i(ServerService.class, "packageBean=" + packageBean.toJson());
+                    }
                     break;
             }
         } else {
@@ -424,6 +439,19 @@ public class ServerService extends Service {
                 String plmnNumeric = intent.getStringExtra(TelephonyIntents.PLMN_NUMERIC);
                 DDLog.i(ServerReceiver.class, "plmnLong=" + plmnLong + ",plmnShort=" + plmnShort + ",plmnNumeric=" + plmnNumeric);
                 PreferenceUtil.put(mContext, Constants.SP_PLMN_NUMBER, plmnNumeric);
+            } else if (TextUtils.equals(intent.getAction(), Constants.ACTION_UPDATE_RESULT)) {
+                int result = intent.getIntExtra("result", 1000);
+                DDLog.i(ServerService.class, "update result=" + result);
+                EventInfo eventInfo = new EventInfo(Constants.EVENT_TYPE_INSTALLAPP);
+                switch (result) {
+                    case 0:
+                        eventInfo.EventValue = Constants.UPDATE_APP_SUCCESS;
+                        break;
+                    default:
+                        eventInfo.EventValue = Constants.UPDATE_APP_FAILED;
+                        break;
+                }
+                mServerThread.sendMsg2Client(eventInfo.toJson());
             }
         }
 
@@ -539,6 +567,7 @@ public class ServerService extends Service {
         intentFilter.addAction(Constants.SMS_RECEIVED_INTENT);
         intentFilter.addAction("android.hardware.usb.action.USB_DEVICE_DETACHED");
         intentFilter.addAction("android.hardware.usb.action.USB_DEVICE_ATTACHED");
+        intentFilter.addAction(Constants.ACTION_UPDATE_RESULT);
         registerReceiver(mServerReceiver, intentFilter);
 
         mSmsReceiver = new SmsReceiver();

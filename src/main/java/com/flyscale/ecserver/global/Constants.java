@@ -10,7 +10,7 @@ import java.util.HashMap;
 
 public class Constants {
 
-    //EventType
+    /*EventType EC定义*/
     public static final String EVENT_TYPE_DIALER = "1";  //拨打电话号码
     public static final String EVENT_TYPE_GETDEVICEINFO = "2";   //获取设备信息
     public static final String EVENT_TYPE_RECODERINFO = "3";     //设置录音的时间类型
@@ -28,8 +28,6 @@ public class Constants {
     public static final String EVENT_TYPE_INSTALLAPP = "15";     //更新Servic app
     public static final String EVENT_TYPE_HIDEDIALNUMBER = "16"; //隐藏号码
 
-    public static final String EVENT_TYPE_PLAY2CALL = "101";
-    public static final String EVENT_TYPE_SENDFILE = "102";
 
     //CALL STATE
     public static final String CALL_STATE_IDLE = "0";    //无通话行为
@@ -51,43 +49,89 @@ public class Constants {
     public static final String PHONE_STATE_HANGUP = "8";     //正在挂断
     public static final String PHONE_STATE_DISCONNECT = "9";    //已经挂断
 
+    public static final String CMD_EVENT_TYPE = "EventType";//事件类型
+    public static final String CMD_EVENT_VALUE = "EventValue";//事件携带的相关信息
 
-    public static final String KEEP_ALIVE_TYPE = "101"; //保活
-
-    public static final String ACK = "ack";
-    public static final String ACTION_CALL_PRIVILEGED = "android.intent.action.CALL_PRIVILEGED";
-
-    public static final String CMD_EVENT_TYPE = "EventType";
-    public static final String CMD_EVENT_VALUE = "EventValue";
     public static final String CMD_CALL_NUMBER = "CallNumber";
 
+
+
+
+    public static final String ACTION_CALL_PRIVILEGED = "android.intent.action.CALL_PRIVILEGED";
+
+
+    /*sharedpreference命名*/
     public static final String AT_CLIENT_SP = "at_client_sp";
-    public static final String FLAG_CALL_STATE = "call_state";
-    public static final int LOCAL_PORT = 8000;
+    /*保存在sp中的通话ID*/
     public static final String SP_CALL_ID = "sp_call_id";
+    /*保存在sp中的录音文件路径*/
     public static final String SP_RECORDER_PATH = "sp_recorder_path";
+
+    public static final String FLAG_CALL_STATE = "call_state";
+
+    /*映射的本地端口号*/
+    public static final int LOCAL_PORT = 8000;
+
+    /*信息数据库base URI*/
     public static final String SMS_BASE_URI = "content://sms";
+    /*心跳保活确认消息，只在测试中使用 bianjb*/
+    public static final String ACK = "ack";
+
+    /*定义一些指令 @author bianjb*/
+    public static final String EVENT_TYPE_PLAY2CALL = "102";//通话播放MP3
+    public static final String EVENT_TYPE_SEND_FILE = "103";//发送文件给客户端
+    public static final String EVENT_TYPE_GET_APPINFO = "104";
+    public static final String KEEP_ALIVE_TYPE = "101"; //保活
+
+
+    /*收件箱uri*/
     public static final String SMS_INBOX_URI = "content://sms/inbox";
+    /*定义短信发送结果的广播*/
     public static final String SMS_DELIVER_INTENT = "android.provider.Telephony.SMS_DELIVER";
+    /*定义对方接收到短信的广播*/
     public static final String SMS_RECEIVED_INTENT = "android.provider.Telephony.SMS_RECEIVED";
+    /*系统中关于电话状态的广播*/
     public static final String FLYSCALE_PHONE_STATE_INTENT = "com.android.phone.FLYSCALE_PHONE_STATE";
+    /*USB状态变化的广播*/
     public static final String USB_STATE_INTENT = "android.hardware.usb.action.USB_STATE";
 
-    public static final String SEND_MSG_SUCCESS = "1";
-    public static final HashMap<String, String>  OPERATOR_MAP = new HashMap<>();
-    public static final String CHINA_MOBILE = "1";
-    public static final String CHINA_UNICOM = "2";
-    public static final String CHINA_TELECOM = "3";
-    public static final String SP_PLMN_NUMBER = "sp_plmn_number";
-    public static final String MODE_DIAL_NUM = "3001";
-    public static final String MODE_IDLE = "3002";
-    public static final String PLAY_DTMF_INTENT = "com.flyscale.ecserver.PLAY_DTMF";
-    public static final String DTMF_STR = "dtmf_str";
+    /*隐藏电话号码的广播，具体逻辑由系统完成*/
     public static final String ACTION_HIDE_NUMBER = "com.flyscale.ecserver.HIDE_NUMBER";
+    /*{ACTION_HIDE_NUMBER}广播中携带是否要隐藏电话号码的标志，0表示显示，1表示 隐藏*/
     public static final String HIDE_NUMBER = "hide_number";
     public static final String HIDE_NUMBER_UNABLED = "0";
     public static final String HIDE_NUMBER_ENABLED = "1";
 
+    /*升级ECServer的广播，由ECHelper完成*/
+    public static final String ACTION_UPDATE_APP = "com.flyscale.ecserver.UPDATE_APP";
+    /*由ECHelper发来的升级ECServer的结果广播*/
+    public static final String ACTION_UPDATE_RESULT = "com.flyscale.echelper.UPDATE_RESULT";
+    /*升级的结果，1表示成功，0表示失败 EC定义*/
+    public static final String UPDATE_APP_SUCCESS = "1";
+    public static final String UPDATE_APP_FAILED = "0";
+
+    /*播放DTMF音的广播，用于拨打分机号，需要在phone进程中完成，由 {DTMF_STR}携带分机号*/
+    public static final String PLAY_DTMF_INTENT = "com.flyscale.ecserver.PLAY_DTMF";
+    /*要播放的DTMF数字*/
+    public static final String DTMF_STR = "dtmf_str";
+
+    /*电话桌面状态：3001表示拨号状态*/
+    public static final String MODE_DIAL_NUM = "3001";
+    /*电话桌面状态：3002表示IDLE状态*/
+    public static final String MODE_IDLE = "3002";
+
+
+    /*短信发送结果*/
+    public static final String SEND_MSG_SUCCESS = "1";
+
+    /*{TelephonyIntents.ACTION_PLMN_INTENT}广播中携带的plmn，再转换成运营商标识 */
+    public static final String SP_PLMN_NUMBER = "sp_plmn_number";
+    /*运营商定义 EC定义*/
+    public static final HashMap<String, String>  OPERATOR_MAP = new HashMap<>();
+    private static final String CHINA_MOBILE = "1";
+    private static final String CHINA_UNICOM = "2";
+    private static final String CHINA_TELECOM = "3";
+    /*不同运营商对应的mcc mnc*/
     static {
         OPERATOR_MAP.put("46000", CHINA_MOBILE);
         OPERATOR_MAP.put("46001", CHINA_UNICOM);
