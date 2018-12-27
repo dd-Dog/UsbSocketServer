@@ -10,6 +10,8 @@ import com.flyscale.ecserver.util.ThreadPool;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -129,6 +131,7 @@ public class ClientListenerThread extends Thread {
             return;
         }
         if (mClientSocket != null && !mClientSocket.isClosed()) {
+            DDLog.i(ClientListenerThread.class, "start send");
             ThreadPool.getInstance().execute(new Runnable() {
                 @Override
                 public void run() {
@@ -193,7 +196,7 @@ public class ClientListenerThread extends Thread {
                         }
                     }
                     String echo = Constants.ACK;
-//                    outputStream.write(echo.getBytes("UTF-8"));
+                    outputStream.write(echo.getBytes("UTF-8"));
                     outputStream.flush();
                 } else {
                     DDLog.w(ClientListenerThread.class, "client maybe got an eror,close socket!");
@@ -224,5 +227,60 @@ public class ClientListenerThread extends Thread {
                 }
             }
         }
+    }
+
+    /**
+     * 发送文件
+     *
+     * @param fileName
+     * @throws IOException
+     */
+    public void sendFile(final String fileName) {
+        DDLog.i(ClientListenerThread.class, "fileName=" + fileName);
+        ThreadPool.getInstance().execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    if (mServerSocket != null && mClientSocket != null) {
+                        DDLog.i(ClientListenerThread.class, "waiting client connect to read file...");
+                        Socket socket = mServerSocket.accept();
+                        synchronized (ServerService.class) {
+                            if (socket.isConnected()) {
+                                File file = new File(fileName);
+                                DataOutputStream dataOutputStream = new DataOutputStream(socket.getOutputStream());
+                                if (file.exists()) {
+                                    //上传文件类型标识
+                                    dataOutputStream.writeInt(0);
+                                    dataOutputStream.flush();
+                                    //上传文件名称
+                                    dataOutputStream.writeUTF(file.getName());
+                                    dataOutputStream.flush();
+                                    //上传文件的长度
+                                    dataOutputStream.writeLong(file.length());
+                                    dataOutputStream.flush();
+                                    //上传文件数据流
+                                    byte[] bytes = new byte[1024];
+                                    int length = 0;
+                                    long progress = 0;
+                                    FileInputStream fileInputStream = new FileInputStream(file);
+                                    while ((length = fileInputStream.read(bytes, 0, bytes.length)) != -1) {
+                                        dataOutputStream.write(bytes, 0, length);
+                                        dataOutputStream.flush();
+                                        progress += length;
+                                        DDLog.i(ClientListenerThread.class, "| " + (100 * progress / file.length()) + "% |");
+                                    }
+                                } else {
+                                    DDLog.e(ClientListenerThread.class, "file " + fileName + " does't exist!!!");
+                                }
+
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
     }
 }

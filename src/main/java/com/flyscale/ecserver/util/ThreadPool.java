@@ -10,10 +10,10 @@ import java.util.concurrent.Executors;
 public class ThreadPool {
 
     public static ExecutorService getInstance() {
-        return SingletonHolder.singleThreadExecutor;
+        return SingletonHolder.fixedThreadPool;
     }
 
     private static class SingletonHolder {
-        private static ExecutorService singleThreadExecutor = Executors.newSingleThreadExecutor();
+        private static ExecutorService fixedThreadPool = Executors.newFixedThreadPool(5);
     }
 }

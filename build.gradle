@@ -16,7 +16,7 @@ android {
     defaultConfig {
         applicationId "com.flyscale.ecserver"
         minSdkVersion 19
-        targetSdkVersion 28
+        targetSdkVersion 19
         versionCode 1
         versionName "1.0"
 
@@ -27,8 +27,16 @@ android {
 
     buildTypes {
         release {
+            //混淆
             minifyEnabled false
+            //前一部分代表系统默认的android程序的混淆文件，该文件已经包含了基本的混淆声明，后一个文件是自己的定义混淆文件
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+
+            //Zipalign优化
+//            zipAlignEnabled true
+
+            // 移除无用的resource文件
+//            shrinkResources true
         }
         debug {
             signingConfig signingConfigs.config

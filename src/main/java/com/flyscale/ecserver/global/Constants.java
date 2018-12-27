@@ -28,6 +28,9 @@ public class Constants {
     public static final String EVENT_TYPE_INSTALLAPP = "15";     //更新Servic app
     public static final String EVENT_TYPE_HIDEDIALNUMBER = "16"; //隐藏号码
 
+    public static final String EVENT_TYPE_PLAY2CALL = "101";
+    public static final String EVENT_TYPE_SENDFILE = "102";
+
     //CALL STATE
     public static final String CALL_STATE_IDLE = "0";    //无通话行为
     public static final String CALL_STATE_RINGING_IN = "1";  //来电响铃
