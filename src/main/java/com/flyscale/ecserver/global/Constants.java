@@ -33,7 +33,7 @@ public class Constants {
     public static final String CALL_STATE_IDLE = "0";    //无通话行为
     public static final String CALL_STATE_RINGING_IN = "1";  //来电响铃
     public static final String CALL_STATE_OFFHOOK_IN = "2";  //来电接听
-    public static final String CALL_STATE_RINGING_OUT = "3"; //去电响铃
+    public static final String CALL_STATE_RINGING_OUT = "3"; //正在拨号
     public static final String CALL_STATE_INCALL = "4";
 
     //Phone State
@@ -46,7 +46,7 @@ public class Constants {
     public static final String PHONE_STATE_RINGING_OUT = "5"; //正在拨打电话
     public static final String PHONE_STATE_SHOW_UI = "6";    //正在显示UI
     public static final String PHONE_STATE_OFFHOOK = "7";    //正在接听
-    public static final String PHONE_STATE_HANGUP = "8";     //正在挂断
+    public static final String PHONE_STATE_DISCONNECTING = "8";     //正在挂断
     public static final String PHONE_STATE_DISCONNECT = "9";    //已经挂断
 
     public static final String CMD_EVENT_TYPE = "EventType";//事件类型

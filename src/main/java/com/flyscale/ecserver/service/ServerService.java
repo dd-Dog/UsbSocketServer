@@ -49,6 +49,7 @@ import org.json.JSONTokener;
 
 import java.io.File;
 import java.util.List;
+import java.util.Objects;
 
 
 /**
@@ -75,6 +76,8 @@ public class ServerService extends Service {
     private SmsReceiver mSmsReceiver;
     private ServiceHandler mHandler = new ServiceHandler();
     private ContentResolver mResolver;
+    public static long mConnectTime;
+    public static String mCallId = "-1";
 
     @Override
     public void onCreate() {
@@ -187,8 +190,7 @@ public class ServerService extends Service {
                     sendBroadcast(dtmfBro);
                     break;
                 case Constants.EVENT_TYPE_CALLSTATE:    //获取电话状态
-                    CallInfo callInfo = PhoneUtil.getCallStateInfo(mContext);
-                    mServerThread.sendMsg2Client(callInfo.toJson());
+                    notifyPhoneState(mCurrentState, true);
                     break;
                 case Constants.EVENT_TYPE_KEYF3:    //电话手柄状态
                     boolean hookState = PhoneUtil.getHookState();
@@ -281,22 +283,25 @@ public class ServerService extends Service {
                         DDLog.i(ServerService.class, "packageBean=" + packageBean.toJson());
                     }
                     break;
+                default:
+                    mServerThread.sendMsg2Client(Constants.ACK);
+                    break;
             }
         } else {
             DDLog.i(ServerService.class, "not a valid json string!");
+            mServerThread.sendMsg2Client(Constants.ACK);
         }
     }
 
 
     private static void sendMsg(String cmdValue) {
-
         DDLog.i(ServerService.class, "sendMsg");
         String[] valueArr = cmdValue.split(";");
         if (!TextUtils.isEmpty(valueArr[0])) {
             String[] numbers = valueArr[0].split(",");
-            for (int i = 0; i < numbers.length; i++) {
-                DDLog.i(ServerService.class, "send address=" + numbers[i] + ",content=" + valueArr[1]);
-                sendSMS(numbers[i], valueArr[1]);
+            for (String number : numbers) {
+                DDLog.i(ServerService.class, "send address=" + number + ",content=" + valueArr[1]);
+                sendSMS(number, valueArr[1]);
             }
         }
     }
@@ -339,7 +344,7 @@ public class ServerService extends Service {
         @Override
         public void onReceive(Context context, Intent intent) {
             DDLog.d(ServerService.class, "onReceive,action=" + intent.getAction());
-            if (intent.getAction().equals(SMS_SEND_ACTION)) {
+            if (Objects.equals(intent.getAction(), SMS_SEND_ACTION)) {
                 /* android.content.BroadcastReceiver.getResultCode()方法 */
                 DDLog.d(ServerService.class, "resultcode=" + getResultCode());
                 switch (getResultCode()) {
@@ -356,7 +361,7 @@ public class ServerService extends Service {
 
                         break;
                 }
-            } else if (intent.getAction().equals(SMS_DELIVERED_ACTION)) {
+            } else if (Objects.equals(intent.getAction(), SMS_DELIVERED_ACTION)) {
                 try {
                     /* android.content.BroadcastReceiver.getResultCode()方法 */
                     DDLog.d(ServerService.class, "SMS_DELIVERED_ACTION,resultcode=" + getResultCode());
@@ -394,9 +399,14 @@ public class ServerService extends Service {
             } else if (TextUtils.equals(intent.getAction(), Constants.FLYSCALE_PHONE_STATE_INTENT)) {
                 int stateFly = intent.getIntExtra("phone_state", Call.State.INVALID);
                 mActivNumber = intent.getStringExtra("phone_number");
+                mCallId = intent.getStringExtra("call_id");
+                long connectRealTime = intent.getLongExtra("connectRealTime", 0);
+                mConnectTime = intent.getLongExtra("connectTime", 0);
+
                 mCurrentState = stateFly;
                 String stateFlyStr = Call.STATE_MAP.get(stateFly);
-                DDLog.i(ServerReceiver.class, "stateFly=" + stateFlyStr);
+                DDLog.i(ServerReceiver.class, "stateFly=" + stateFlyStr + ",mActivNumber=" + mActivNumber + ",mCallId=" + mCallId);
+                DDLog.i(ServerReceiver.class, "connectRealTime=" + connectRealTime + ",connectTime=" + mConnectTime);
                 /*如果新的电话为INCOMING或者是DIALING就生成一次通话ID*/
                 PhoneUtil.generateCallId(mContext, mActivNumber);
                 DDLog.i(ServerReceiver.class, "mOldState=" + Call.STATE_MAP.get(mOldState) + ",mCurrentState=" + Call.STATE_MAP.get(mCurrentState));
@@ -430,6 +440,7 @@ public class ServerService extends Service {
                     }
                 }
                 mOldState = mCurrentState;
+                notifyPhoneState(mCurrentState, true);
             } else if (TextUtils.equals(intent.getAction(), Constants.SMS_DELIVER_INTENT) ||
                     TextUtils.equals(intent.getAction(), Constants.SMS_RECEIVED_INTENT)) {
                 getMsgFromIntent(intent.getExtras());
@@ -455,7 +466,64 @@ public class ServerService extends Service {
             }
         }
 
+    }
 
+    /**
+     * 通知EC客户端电话状态发生改变
+     *
+     * @param state
+     * @param withCallId
+     */
+    private void notifyPhoneState(int state, boolean withCallId) {
+        DDLog.i(ServerService.class, "state=" + state);
+        String ecPhoneState = Constants.PHONE_STATE_IDLE;
+        String ecCallState = Constants.CALL_STATE_IDLE;
+        switch (state) {
+            case Call.State.ACTIVE://电话接通
+                ecPhoneState = Constants.PHONE_STATE_OFFHOOK;
+                ecCallState = Constants.CALL_STATE_OFFHOOK_IN;
+                break;
+            case Call.State.CALL_WAITING://电话等待
+                ecPhoneState = Constants.PHONE_STATE_WAIT;
+                ecCallState = Constants.CALL_STATE_RINGING_IN;
+                break;
+            case Call.State.CONFERENCED://电话会议
+                break;
+            case Call.State.DIALING://拨号中
+                ecPhoneState = Constants.PHONE_STATE_RINGING_OUT;
+                ecCallState = Constants.CALL_STATE_RINGING_OUT;
+                break;
+            case Call.State.DISCONNECTED://已挂断
+                ecPhoneState = Constants.PHONE_STATE_DISCONNECT;
+                ecCallState = Constants.CALL_STATE_RINGING_OUT;
+                break;
+            case Call.State.DISCONNECTING://正在挂断
+                ecPhoneState = Constants.PHONE_STATE_DISCONNECTING;
+                ecCallState = Constants.CALL_STATE_RINGING_OUT;
+                break;
+            case Call.State.IDLE://待机状态
+                ecPhoneState = Constants.PHONE_STATE_IDLE;
+                ecCallState = Constants.CALL_STATE_IDLE;
+                break;
+            case Call.State.INCOMING://有来电
+                ecPhoneState = Constants.PHONE_STATE_RING_IN;
+                ecCallState = Constants.CALL_STATE_RINGING_IN;
+                break;
+            case Call.State.ONHOLD://
+                break;
+            case Call.State.REDIALING://重拨
+
+                break;
+        }
+        CallInfo callStateInfo = PhoneUtil.getCallStateInfo(this);
+        callStateInfo.PhoneState = ecPhoneState;
+        callStateInfo.CallState = ecCallState;
+        if (withCallId) {
+            callStateInfo.CallId = mCallId;
+        } else {
+            callStateInfo.CallId = "";
+        }
+        mServerThread.sendMsg2Client(callStateInfo.toJson());
     }
 
     /**

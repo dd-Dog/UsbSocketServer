@@ -195,9 +195,9 @@ public class ClientListenerThread extends Thread {
                             handler.sendMessage(message);
                         }
                     }
-                    String echo = Constants.ACK;
-                    outputStream.write(echo.getBytes("UTF-8"));
-                    outputStream.flush();
+//                    String echo = Constants.ACK;
+//                    outputStream.write(echo.getBytes("UTF-8"));
+//                    outputStream.flush();
                 } else {
                     DDLog.w(ClientListenerThread.class, "client maybe got an eror,close socket!");
                     mLoop = false;

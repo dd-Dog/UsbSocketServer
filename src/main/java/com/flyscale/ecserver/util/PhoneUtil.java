@@ -294,6 +294,7 @@ public class PhoneUtil {
         String[] meminfo = new String[2];
         ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
         ActivityManager.MemoryInfo memoryInfo = new ActivityManager.MemoryInfo();
+        assert am != null;
         am.getMemoryInfo(memoryInfo);
         meminfo[0] = memoryInfo.totalMem / 1024 + " KB";
         meminfo[1] = memoryInfo.availMem / 1024 + " KB";
@@ -312,8 +313,8 @@ public class PhoneUtil {
             callInfo.CallTime = "";
         } else {
             callInfo.CallNumber = ServerService.getActivNumber();
-            callInfo.CallTime = "";
-            callInfo.CallId = getCallId(context);
+            callInfo.CallTime = ServerService.mConnectTime + "";
+//            callInfo.CallId = ServerService.mCallId +"";
             callInfo.RecoderPath = PreferenceUtil.getString(context, Constants.SP_RECORDER_PATH, "");
         }
         callInfo.EventType = Constants.EVENT_TYPE_CALLSTATE;
