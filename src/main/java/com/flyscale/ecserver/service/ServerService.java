@@ -78,6 +78,11 @@ public class ServerService extends Service {
     private ContentResolver mResolver;
     public static long mConnectTime;
     public static String mCallId = "-1";
+    private static String mAddress;
+
+    public static String getAddress() {
+        return mAddress;
+    }
 
     @Override
     public void onCreate() {
@@ -116,7 +121,6 @@ public class ServerService extends Service {
         mResolver = getContentResolver();
         mSmsObserver = new SmsObserver(mResolver, new SmsHandler(this));
 //        mResolver.registerContentObserver(Uri.parse(Constants.SMS_BASE_URI), true, mSmsObserver);
-
 
         //每次重启服务，需要重启开启线程，避免因为异常导致APP退出，线程仍然空跑的问题
         stopServerTherad(false);
@@ -399,6 +403,7 @@ public class ServerService extends Service {
             } else if (TextUtils.equals(intent.getAction(), Constants.FLYSCALE_PHONE_STATE_INTENT)) {
                 int stateFly = intent.getIntExtra("phone_state", Call.State.INVALID);
                 mActivNumber = intent.getStringExtra("phone_number");
+                mAddress = intent.getStringExtra("address");
                 mCallId = intent.getStringExtra("call_id");
                 long connectRealTime = intent.getLongExtra("connectRealTime", 0);
                 mConnectTime = intent.getLongExtra("connectTime", 0);

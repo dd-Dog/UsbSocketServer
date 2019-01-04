@@ -312,7 +312,7 @@ public class PhoneUtil {
             callInfo.CallNumber = "";
             callInfo.CallTime = "";
         } else {
-            callInfo.CallNumber = ServerService.getActivNumber();
+            callInfo.CallNumber = ServerService.getAddress();
             callInfo.CallTime = ServerService.mConnectTime + "";
 //            callInfo.CallId = ServerService.mCallId +"";
             callInfo.RecoderPath = PreferenceUtil.getString(context, Constants.SP_RECORDER_PATH, "");
