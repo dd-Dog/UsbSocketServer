@@ -20,6 +20,7 @@
     <uses-permission android:name="android.permission.GET_TASKS"/>
     <uses-permission android:name="android.permission.WRITE_SETTINGS"/>
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"/>
+    <uses-permission android:name="android.permission.MODIFY_PHONE_STATE"/>
 
     <!--绑定call service 声明权限-->
     <permission android:name="android.permission.BIND_CALL_SERVICE" />

@@ -58,6 +58,11 @@ import java.util.Objects;
 
 public class ServerService extends Service {
 
+    //因为硬件原因导致每次HOOK状态重复上报两次，这里要过滤，500ms之内只允许发送一 次
+    private static final int MSG_FILTER = 3001;
+    private boolean mHookFilter = true; //是否可以向EC客户端发送消息
+    private static final int MSG_FILER_DELAYED = 500;
+
     private ServerReceiver mServerReceiver;
     private static ClientListenerThread mServerThread;
     private ServerBinder mServerBinder;
@@ -144,6 +149,9 @@ public class ServerService extends Service {
                         break;
                     case ClientListenerThread.MSG_LISTENER_THREAD_DIED:
                         startServerThread();
+                        break;
+                    case MSG_FILTER:
+                        mHookFilter = true;//设置为true
                         break;
                 }
             }
@@ -393,7 +401,24 @@ public class ServerService extends Service {
         @Override
         public void onReceive(Context context, Intent intent) {
             DDLog.i(ServerReceiver.class, "action=" + intent.getAction());
-            if (TextUtils.equals(intent.getAction(), Constants.USB_STATE_INTENT)) {
+            if (TextUtils.equals(intent.getAction(), Constants.ACTION_HOOK_STATE)) {
+                String hook_state = intent.getStringExtra("hook_state");
+                DDLog.i(ServerReceiver.class, "hook_state=" + hook_state);
+                EventInfo eventInfo = new EventInfo(Constants.EVENT_TYPE_KEYF3, String.valueOf(hook_state));
+                if (mHookFilter) {
+                    mServerThread.sendMsg2Client(eventInfo.toJson());
+                    mHookFilter = false;
+                    mHandler.sendEmptyMessageDelayed(MSG_FILTER, 500);
+                }else {
+                    DDLog.i(ServerReceiver.class, "hook_state is ignored!");
+                }
+
+            } else if (TextUtils.equals(intent.getAction(), Constants.ACTION_HANDFREE_STATE)) {
+                String handfree = intent.getStringExtra("handfree_state");
+                DDLog.i(ServerReceiver.class, "handfree_state=" + handfree);
+                EventInfo eventInfo = new EventInfo(Constants.EVENT_TYPE_KEYCALL, handfree);
+                mServerThread.sendMsg2Client(eventInfo.toJson());
+            } else if (TextUtils.equals(intent.getAction(), Constants.USB_STATE_INTENT)) {
                 boolean connected = intent.getExtras().getBoolean("connected");
                 DDLog.i(ServerReceiver.class, "USB connected=" + connected);
                 if (connected)
@@ -410,14 +435,12 @@ public class ServerService extends Service {
 
                 mCurrentState = stateFly;
                 String stateFlyStr = Call.STATE_MAP.get(stateFly);
-                DDLog.i(ServerReceiver.class, "stateFly=" + stateFlyStr + ",mActivNumber=" + mActivNumber + ",mCallId=" + mCallId);
+                DDLog.i(ServerReceiver.class, "stateFly=" + stateFlyStr + ",mActivNumber=" + mActivNumber + ",mCallId=" + mCallId + ",address=" + mAddress);
                 DDLog.i(ServerReceiver.class, "connectRealTime=" + connectRealTime + ",connectTime=" + mConnectTime);
-                /*如果新的电话为INCOMING或者是DIALING就生成一次通话ID*/
-                PhoneUtil.generateCallId(mContext, mActivNumber);
                 DDLog.i(ServerReceiver.class, "mOldState=" + Call.STATE_MAP.get(mOldState) + ",mCurrentState=" + Call.STATE_MAP.get(mCurrentState));
                 if (mOldState == Call.State.INCOMING) {
                     if (mCurrentState == Call.State.ACTIVE) {
-                        mRecorder.start(mActivNumber);
+                        mRecorder.start(mAddress);
                     }
                 } else if (mOldState == Call.State.ACTIVE) {
                     if (mCurrentState == Call.State.DISCONNECTED) {
@@ -426,7 +449,7 @@ public class ServerService extends Service {
                 }
 
                 if (mCurrentState == Call.State.DIALING) {
-                    mRecorder.start(mActivNumber);
+                    mRecorder.start(mAddress);
                 }
                 if (mOldState == Call.State.DIALING) {
                     if (mCurrentState == Call.State.ACTIVE) {
@@ -439,13 +462,17 @@ public class ServerService extends Service {
                         }
                         while (!mRecorder.getState().isIdle()) ;
                         DDLog.i(ServerReceiver.class, "start to recording");
-                        mRecorder.start(mActivNumber);
+                        mRecorder.start(mAddress);
                     } else if (mCurrentState == Call.State.DISCONNECTED || mCurrentState == Call.State.DISCONNECTING) {
                         mRecorder.stop();
                     }
                 }
                 mOldState = mCurrentState;
                 notifyPhoneState(mCurrentState, true);
+                if (mCurrentState == Call.State.DISCONNECTED){
+                    //如果是已经挂断状态，在通知状态后把当前状态改为IDLE
+                    mCurrentState = Call.State.IDLE;
+                }
             } else if (TextUtils.equals(intent.getAction(), Constants.SMS_DELIVER_INTENT) ||
                     TextUtils.equals(intent.getAction(), Constants.SMS_RECEIVED_INTENT)) {
                 getMsgFromIntent(intent.getExtras());
@@ -480,7 +507,7 @@ public class ServerService extends Service {
      * @param withCallId
      */
     private void notifyPhoneState(int state, boolean withCallId) {
-        DDLog.i(ServerService.class, "state=" + state);
+        DDLog.i(ServerService.class, "notifyPhoneState,state=" + state);
         String ecPhoneState = Constants.PHONE_STATE_IDLE;
         String ecCallState = Constants.CALL_STATE_IDLE;
         switch (state) {
@@ -515,12 +542,14 @@ public class ServerService extends Service {
                 ecCallState = Constants.CALL_STATE_RINGING_IN;
                 break;
             case Call.State.ONHOLD://
-                break;
+                return;
             case Call.State.REDIALING://重拨
 
-                break;
+                return;
+            default:
+                return;
         }
-        CallInfo callStateInfo = PhoneUtil.getCallStateInfo(this);
+        CallInfo callStateInfo = PhoneUtil.getCallStateInfo(this, state);
         callStateInfo.PhoneState = ecPhoneState;
         callStateInfo.CallState = ecCallState;
         if (withCallId) {
@@ -641,6 +670,8 @@ public class ServerService extends Service {
         intentFilter.addAction("android.hardware.usb.action.USB_DEVICE_DETACHED");
         intentFilter.addAction("android.hardware.usb.action.USB_DEVICE_ATTACHED");
         intentFilter.addAction(Constants.ACTION_UPDATE_RESULT);
+        intentFilter.addAction(Constants.ACTION_HANDFREE_STATE);
+        intentFilter.addAction(Constants.ACTION_HOOK_STATE);
         registerReceiver(mServerReceiver, intentFilter);
 
         mSmsReceiver = new SmsReceiver();

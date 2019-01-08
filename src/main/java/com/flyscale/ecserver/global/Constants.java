@@ -102,6 +102,11 @@ public class Constants {
     public static final String HIDE_NUMBER_UNABLED = "0";
     public static final String HIDE_NUMBER_ENABLED = "1";
 
+    /*拨号状态广播*/
+    public static final String ACTION_HOOK_STATE = "com.flyscale.dialer.ACTION_HOOK_STATE";
+    /*免提状态广播*/
+    public static final String ACTION_HANDFREE_STATE = "com.flyscale.dialer.ACTION_HANDFREE_STATE";
+
     /*升级ECServer的广播，由ECHelper完成*/
     public static final String ACTION_UPDATE_APP = "com.flyscale.ecserver.UPDATE_APP";
     /*由ECHelper发来的升级ECServer的结果广播*/
@@ -131,6 +136,18 @@ public class Constants {
     private static final String CHINA_MOBILE = "1";
     private static final String CHINA_UNICOM = "2";
     private static final String CHINA_TELECOM = "3";
+
+    /*录音文件存储路径*/
+    public static final String RECORDER_ROOT_PATH = "/storage/emulated/legacy";
+
+    /*LOG存储相对路径*/
+    public static final String LOG_RELA_PATH = "pcservice";
+    /*当前log文件名*/
+    public static final String LOG_FILE_NAME = "pcservice.log";
+    /*重启前一次的log文件名*/
+    public static final String PRELOG_FILE_NAME = "pcservice_pre.log";
+
+
     /*不同运营商对应的mcc mnc*/
     static {
         OPERATOR_MAP.put("46000", CHINA_MOBILE);

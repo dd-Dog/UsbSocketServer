@@ -335,7 +335,7 @@ public class Recorder {
         } else {
             return TYPE_NO_AVAILABLE_STORAGE;
         }*/
-        root = mContext.getFilesDir().getPath();
+        root = Constants.RECORDER_ROOT_PATH;
         DDLog.i(Recorder.class, "recording path=" + root);
         base = new File(root + DEFAULT_STORE_SUBDIR);
         if (!base.isDirectory() && !base.mkdir()) {

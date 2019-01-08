@@ -21,6 +21,7 @@ import com.flyscale.ecserver.bean.DeviceInfo;
 import com.flyscale.ecserver.bean.SmsInfo;
 import com.flyscale.ecserver.global.Constants;
 import com.flyscale.ecserver.service.ServerService;
+import com.flyscale.ecserver.telephony.Call;
 
 import android.util.Log;
 
@@ -303,12 +304,12 @@ public class PhoneUtil {
         return meminfo;
     }
 
-    public static CallInfo getCallStateInfo(Context context) {
+    public static CallInfo getCallStateInfo(Context context, int phoneState) {
         DDLog.i(PhoneUtil.class, "getCallStateInfo");
         CallInfo callInfo = new CallInfo();
         callInfo.CallState = getPhoneState(context) + "";
         callInfo.PhoneState = getPhoneState(context) + "";
-        if (isIdle(context)) {
+        if (phoneState == Call.State.IDLE) {
             callInfo.CallNumber = "";
             callInfo.CallTime = "";
         } else {
