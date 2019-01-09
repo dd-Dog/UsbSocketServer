@@ -85,6 +85,12 @@ public class ServerService extends Service {
     public static String mCallId = "-1";
     private static String mAddress;
 
+    //保活时间间隔,超过该时间没有收到消息则断开，重新连接
+    public static final int KEEP_ALIVE_INTERVAL = 40 * 1000;
+    public static final int MSG_KEEP_ALIVE = 3003;
+    private static final int MSG_CLIENT_TIMEOUT = 3004;
+
+
     public static String getAddress() {
         return mAddress;
     }
@@ -153,6 +159,16 @@ public class ServerService extends Service {
                     case MSG_FILTER:
                         mHookFilter = true;//设置为true
                         break;
+                    case MSG_KEEP_ALIVE:
+                        removeMessages(MSG_CLIENT_TIMEOUT);
+                        sendEmptyMessageDelayed(MSG_CLIENT_TIMEOUT, KEEP_ALIVE_INTERVAL);
+                        DDLog.i(ServerService.class, "reset client timeout 40s!");
+                        break;
+                    case MSG_CLIENT_TIMEOUT:
+//                        stopServerTherad(true);
+//                        DDLog.i(ServerService.class, "client timeout,stop and restart listener!");
+                        break;
+
                 }
             }
         }
@@ -244,9 +260,9 @@ public class ServerService extends Service {
                     sendMsg(cmdObj.getString(Constants.CMD_EVENT_VALUE));
                     break;
                 case Constants.EVENT_TYPE_INSTALLAPP:   //更新service app
-                    String apkPath = cmdObj.getString(Constants.CMD_EVENT_VALUE);
+//                    String apkPath = cmdObj.getString(Constants.CMD_EVENT_VALUE);
                     Intent updateIntent = new Intent(Constants.ACTION_UPDATE_APP);
-                    updateIntent.putExtra("path", apkPath);
+                    updateIntent.putExtra("path", "/storage/emulated/legacy/XRPCAndroidService.apk");
                     updateIntent.putExtra("pkgname", getPackageName());
                     DDLog.i(ServerService.class, "pkgname=" + getPackageName());
                     sendBroadcast(updateIntent);
@@ -443,7 +459,7 @@ public class ServerService extends Service {
                         mRecorder.start(mAddress);
                     }
                 } else if (mOldState == Call.State.ACTIVE) {
-                    if (mCurrentState == Call.State.DISCONNECTED) {
+                    if (mCurrentState == Call.State.DISCONNECTED || mCurrentState == Call.State.DISCONNECTING) {
                         mRecorder.stop();
                     }
                 }
@@ -625,6 +641,10 @@ public class ServerService extends Service {
         super.onRebind(intent);
     }
 
+    /**
+     *
+     * @param restart 是否重启线程
+     */
     private void stopServerTherad(boolean restart) {
         DDLog.i(ServerService.class, "stopServerTherad");
         if (mServerThread != null) {

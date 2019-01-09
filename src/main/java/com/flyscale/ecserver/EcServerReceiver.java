@@ -20,7 +20,7 @@ public class EcServerReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        DDLog.init(context);
+        DDLog.init(context, true);
         String action = intent.getAction();
         String dataString = intent.getDataString();
         DDLog.i(EcServerReceiver.class, "action=" + action + ",dataString=" + dataString);

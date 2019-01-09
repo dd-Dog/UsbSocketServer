@@ -45,7 +45,6 @@ public class DDLog {
                         //如果是开机重启则重新命名文件
                         File preFile = new File(PRE_CALL_LOG_FILE);
                         if (preFile.exists()) {
-                            Log.i("DDLog", "prelog file exists, delete it!");
                             boolean delete = preFile.delete();
                             Log.i("DDLog", "prelog file delete" + (delete ? "success!" : "failed!"));
                         }
@@ -59,6 +58,7 @@ public class DDLog {
                 boolean mkdirs = file.mkdirs();
                 if (mkdirs) {
                     Log.i("DDLog", "create log dir " + logPath + " success!!!");
+                    createFile(CALL_LOG_FILE, true);
                 } else {
                     Log.e("DDLog", "create log file failed!!!");
                 }
@@ -77,8 +77,7 @@ public class DDLog {
      */
     private static boolean createFile(String logFile, boolean removeOld) throws IOException {
         File file = new File(logFile);
-        if (file.exists() && !removeOld){
-            Log.i("DDLog", "log file" + logFile + " exists,removeOld=" + removeOld + ",return");
+        if (file.exists() && !removeOld) {
             return false;
         }
         Log.i("DDLog", "log file" + logFile + " does not exists!!!");
@@ -95,6 +94,20 @@ public class DDLog {
     private static void writeStr(String file, String data) {
         FileWriter fileWriter = null;
         try {
+            String logPath = LOG_ROOT_PATH + File.separator + Constants.LOG_RELA_PATH;
+            File path = new File(logPath);
+            if (path.exists() && path.isDirectory()) {
+                createFile(CALL_LOG_FILE, false);
+            }else {
+                boolean mkdirs = path.mkdirs();
+                if (mkdirs) {
+                    Log.i("DDLog", "create log dir " + logPath + " success!!!");
+                    createFile(CALL_LOG_FILE, true);
+                } else {
+                    Log.e("DDLog", "create log file failed!!!");
+                    return;
+                }
+            }
             File logFile = new File(file);
             if (!logFile.exists()) {
                 Log.w("DDLog", "log file does not exists!!!");
@@ -104,7 +117,7 @@ public class DDLog {
                     return;
                 }
             }
-            fileWriter = new FileWriter(file);
+            fileWriter = new FileWriter(file, true);
             fileWriter.append(data);
             fileWriter.flush();
         } catch (IOException e) {

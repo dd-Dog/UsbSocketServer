@@ -16,12 +16,12 @@ public class ServerApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
-        DDLog.init(this);
-        if (!ServiceUtil.isServiceRunning(this, ServerService.class.getName())){
+//        DDLog.init(this, false);
+        if (!ServiceUtil.isServiceRunning(this, ServerService.class.getName())) {
             DDLog.i(ServerApplication.class, "ServerService is not running, start it");
             Intent intent = new Intent(this, ServerService.class);
             startService(intent);
-        }else {
+        } else {
             DDLog.i(ServerApplication.class, "ServerService is already running");
         }
     }

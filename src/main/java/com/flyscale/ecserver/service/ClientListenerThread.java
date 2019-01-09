@@ -1,5 +1,6 @@
 package com.flyscale.ecserver.service;
 
+import android.annotation.SuppressLint;
 import android.os.Handler;
 import android.os.Message;
 import android.text.TextUtils;
@@ -34,6 +35,7 @@ public class ClientListenerThread extends Thread {
     public static final int MSG_LISTENER_THREAD_DIED = 1002;
     private boolean mRestart = true;
 
+
     public ClientListenerThread() {
         super(ClientListenerThread.class.getSimpleName());
         mKeepAliver = new KeepAlive();
@@ -63,51 +65,6 @@ public class ClientListenerThread extends Thread {
         mRestart = restart;
     }
 
-    /**
-     * @param handler 需要设置回调的handler
-     * @return
-     */
-//    public static ClientListenerThread getInstance(Handler handler) {
-        /*DDLog.i(ClientListenerThread.class, "getInstance()");
-        if (sInstance == null) {
-            sInstance = new ClientListenerThread(ClientListenerThread.class.getSimpleName());
-        } else if (sInstance.getState() == State.NEW) {
-            sInstance.start();
-        } else if (sInstance.getState() == State.RUNNABLE || sInstance.getState() == State.BLOCKED ||
-                sInstance.getState() == State.TIMED_WAITING || sInstance.getState() == State.WAITING) {
-        } else {
-            sInstance = new ClientListenerThread(ClientListenerThread.class.getSimpleName());
-        }
-        sInstance.addHandler(handler);
-        return sInstance;*/
-
-//        return SingletonHolder.sInstance;
-//    }
-
-    /**
-     * 静态内部类保存线程的实例对象
-     */
-    private static class SingletonHolder {
-//        private static ClientListenerThread sInstance = new ClientListenerThread(ClientListenerThread.class.getSimpleName());
-
-        /*
-     * 判断线程状态，如果没有在运行，就要重新创建新的线程对象
-     *
-     * @return 返回的线程已经开始执行run方法
-
-        private static ClientListenerThread getInstance(Handler handler) {
-//            DDLog.i(SingletonHolder.class, "getInstance()");
-            if (sInstance.getState() == State.NEW) {
-                sInstance.start();
-            } else if (sInstance.getState() == State.RUNNABLE || sInstance.getState() == State.BLOCKED ||
-                    sInstance.getState() == State.TIMED_WAITING || sInstance.getState() == State.WAITING) {
-            } else {
-                sInstance = new ClientListenerThread(ClientListenerThread.class.getSimpleName());
-            }
-            sInstance.addHandler(handler);
-            return sInstance;
-        }*/
-    }
 
     /**
      * 添加Handler
@@ -161,6 +118,13 @@ public class ClientListenerThread extends Thread {
             DDLog.i(ClientListenerThread.class, "waiting for client...");
             mClientSocket = mServerSocket.accept();
             DDLog.i(ClientListenerThread.class, "accept");
+            //延时发送超时消息，在40S之内客户端必须有数据，否则会超时断开重启
+            if (mHandlerList != null) {
+                for (Handler handler : mHandlerList) {
+                    handler.sendEmptyMessageDelayed(ServerService.MSG_KEEP_ALIVE, ServerService.KEEP_ALIVE_INTERVAL);
+                }
+            }
+
             mKeepAliver.setListenerThread(sInstance);
 //            mKeepAliver.startKeepAlive();
             while (mLoop) {
@@ -193,6 +157,7 @@ public class ClientListenerThread extends Thread {
                             message.obj = text;
                             message.what = MSG_FROM_CLIENT;
                             handler.sendMessage(message);
+                            handler.sendEmptyMessage(ServerService.MSG_KEEP_ALIVE);
                         }
                     }
 //                    String echo = Constants.ACK;

@@ -70,7 +70,7 @@ public class Recorder {
     public static final int TYPE_SAVE_FAIL = 8;
     public static final int TYPE_NO_AVAILABLE_STORAGE = 9;// no available storage
 
-    private static final long MIN_LENGTH = 512;// 512
+    private static final long MIN_LENGTH = 128;//录音文件最小长度
     private static final long MINIMUM_FREE_SIZE = 6 * 1024 * 1024;
     private static final long FORCE_FREE_SIZE = MINIMUM_FREE_SIZE;
     private static final long INIT_TIME = 0;
@@ -472,7 +472,7 @@ public class Recorder {
      * signal current state, when state changed
      **/
     private void setState(State state) {
-        DDLog.e(Recorder.class, "pre State = " + mState + ", new State = " + state);
+        DDLog.d(Recorder.class, "pre State = " + mState + ", new State = " + state);
         if (state != mState) {
             mState = state;
             Message m = mUiHandler.obtainMessage(SIGNAL_STATE, mState);
