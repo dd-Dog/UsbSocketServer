@@ -2,7 +2,7 @@
  * Created by flyscale
  */
 
-package com.flyscale.ecserver;
+package com.flyscale.ecserver.recorder;
 
 import java.io.File;
 import java.io.IOException;
@@ -30,8 +30,8 @@ import android.os.SystemClock;
 import android.provider.MediaStore;
 import android.util.Log;
 
+import com.flyscale.ecserver.R;
 import com.flyscale.ecserver.global.Constants;
-import com.flyscale.ecserver.telephony.Call;
 import com.flyscale.ecserver.util.DDLog;
 import com.flyscale.ecserver.util.PreferenceUtil;
 
@@ -52,7 +52,7 @@ public class Recorder {
 
     private static final String DEFAULT_STORE_SUBDIR = "/voicecall";
     private static final String DEFAULT_RECORD_SUFFIX = ".amr";
-    private static final int DEFAULT_OUTPUTFORMAT_TYPE = MediaRecorder.OutputFormat.AMR_NB;
+    private static final int DEFAULT_OUTPUTFORMAT_TYPE = MediaRecorder.OutputFormat.AMR_WB;
     private static final String DEFAULT_MIME_TYPE = "audio/amr";
     private static final String DEFAULT_FROMAT = "yyyy-MM-dd HH:mm:ss";
     private static final String DEFAULT_DECOLLATOR = "-";
@@ -202,7 +202,6 @@ public class Recorder {
         }
     }
 
-    ;
 
     private class AsyncThread extends Handler {
         private boolean checkAble;
@@ -404,7 +403,9 @@ public class Recorder {
         mRecorder = new MediaRecorder();
         mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
         mRecorder.setOutputFormat(outputfileformat);
-        mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+        mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_WB);
+        mRecorder.setAudioChannels(2);
+        mRecorder.setAudioSamplingRate(16000);
         mRecorder.setOutputFile(mSampleFile.getAbsolutePath());
 
         // Handle IOException

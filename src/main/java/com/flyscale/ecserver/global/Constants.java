@@ -72,6 +72,9 @@ public class Constants {
     /*映射的本地端口号*/
     public static final int LOCAL_PORT = 8000;
 
+    /*上传音频流服务的本地端口号*/
+    public static final int LOCAL_PORT_STREAM = 9000;
+
     /*信息数据库base URI*/
     public static final String SMS_BASE_URI = "content://sms";
     /*心跳保活确认消息，只在测试中使用 bianjb*/

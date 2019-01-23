@@ -2,31 +2,35 @@ package com.flyscale.ecserver;
 
 import android.annotation.SuppressLint;
 import android.content.ComponentName;
-import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.media.AudioRecord;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
+import android.view.KeyEvent;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.flyscale.ecserver.recorder.AmrAudioEncoder;
+import com.flyscale.ecserver.recorder.AudioRecorder;
+import com.flyscale.ecserver.recorder.Recorder;
 import com.flyscale.ecserver.service.ClientListenerThread;
 import com.flyscale.ecserver.service.ServerService;
 import com.flyscale.ecserver.util.DDLog;
 import com.flyscale.ecserver.util.JsonUtil;
 import com.flyscale.ecserver.util.ServiceUtil;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 
 public class MainActivity extends AppCompatActivity {
 
     ClientListenerThread serverThread;
     private ServerConnection mServerConnection;
+    private AmrAudioEncoder amrAudioEncoder;
+    private AudioRecorder audioRecorder;
+    private Recorder recorder;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,6 +65,32 @@ public class MainActivity extends AppCompatActivity {
         } else {
             DDLog.i(MainActivity.class, "ServerService is already running");
         }
+    }
+
+    @Override
+    public boolean onKeyUp(int keyCode, KeyEvent event) {
+        DDLog.i(MainActivity.class, "keyCode=" + keyCode);
+        if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+
+//            recorder = Recorder.getInstance(this);
+//            recorder.start("test");
+//
+            audioRecorder = new AudioRecorder();
+            audioRecorder.init();
+            audioRecorder.start();
+
+        } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+            if (amrAudioEncoder != null) {
+                amrAudioEncoder.stop();
+            }
+            if (audioRecorder != null){
+                audioRecorder.stop();
+            }
+            if (recorder != null){
+                recorder.stop();
+            }
+        }
+        return super.onKeyUp(keyCode, event);
     }
 
     private class ServerConnection implements ServiceConnection {
