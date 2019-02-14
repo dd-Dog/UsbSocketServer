@@ -132,8 +132,8 @@ interface ITelephony {
     boolean isRadioOn();
 
     /**
-     * Check if the SIM pin lock is enabled.
-     * @return true if the SIM pin lock is enabled.
+     * Check if the SIM pin lock is mEnabled.
+     * @return true if the SIM pin lock is mEnabled.
      */
     boolean isSimPinEnabled();
 
@@ -379,7 +379,7 @@ interface ITelephony {
     void setInternalPreferredNetworkTypeForPhone(int phoneId, int networkType);
     int getInternalPreferredNetworkTypeForPhone(int phoneId, String callingPackage);
     /* @} */
-    void setLteEnabled(boolean enabled);
+    void setLteEnabled(boolean mEnabled);
     void shutdownRadioForPhone();
     boolean isRadioAvailable();
     //* SPRD: Bug649924 and 655228 Add interfaces for the PNN&SPN home name @{ */

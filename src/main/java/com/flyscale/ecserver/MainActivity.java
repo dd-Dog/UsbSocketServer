@@ -14,14 +14,19 @@ import android.view.KeyEvent;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.flyscale.ecserver.global.Constants;
 import com.flyscale.ecserver.recorder.AmrAudioEncoder;
 import com.flyscale.ecserver.recorder.AudioRecorder;
+import com.flyscale.ecserver.recorder.Queue;
 import com.flyscale.ecserver.recorder.Recorder;
 import com.flyscale.ecserver.service.ClientListenerThread;
 import com.flyscale.ecserver.service.ServerService;
 import com.flyscale.ecserver.util.DDLog;
 import com.flyscale.ecserver.util.JsonUtil;
 import com.flyscale.ecserver.util.ServiceUtil;
+
+import java.io.IOException;
+import java.net.ServerSocket;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -31,6 +36,7 @@ public class MainActivity extends AppCompatActivity {
     private AmrAudioEncoder amrAudioEncoder;
     private AudioRecorder audioRecorder;
     private Recorder recorder;
+    private ServerSocket mServerSocket;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,13 +52,28 @@ public class MainActivity extends AppCompatActivity {
 //        DDLog.i(MainActivity.class, "SDTotal=" + StorageUtil.getSDTotalSize(this));
 //        DDLog.i(MainActivity.class, "SDAvail=" + StorageUtil.getSDAvailableSize(this));
 //        DDLog.i(MainActivity.class, "PhoneTotal=" + StorageUtil.getUserDataTotalSize(this));
-        DDLog.i(MainActivity.class, "isJson=" + JsonUtil.isJson("{\"CallNumber\":\"13043467225\",\"EventType\":\"1\"}", 0));
-        DDLog.i(MainActivity.class, "isJson=" + JsonUtil.isJson("{\"CallNumber\":\"13043467225\"\"EventType\":\"1\"}", 0));
+//        DDLog.i(MainActivity.class, "isJson=" + JsonUtil.isJson("{\"CallNumber\":\"13043467225\",\"EventType\":\"1\"}", 0));
+//        DDLog.i(MainActivity.class, "isJson=" + JsonUtil.isJson("{\"CallNumber\":\"13043467225\"\"EventType\":\"1\"}", 0));
 
         TextView tv = findViewById(R.id.tv);
         CharSequence text = tv.getText();
         DDLog.i(MainActivity.class, "text=" + text);
 
+//        Queue<Integer> queue = new Queue<>();
+//        for (int i = 0; i < 30; i++) {
+//            queue.push(i);
+//        }
+//
+//        for (int i = 0; i < 40; i++) {
+//            DDLog.i(MainActivity.class, "queue=" + queue.toString() + ",length=" + queue.length());
+//            queue.pop();
+//        }
+//        DDLog.i(MainActivity.class, "queue=" + queue.toString());
+        try {
+            mServerSocket = new ServerSocket(Constants.LOCAL_PORT_STREAM);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -76,19 +97,19 @@ public class MainActivity extends AppCompatActivity {
 //            recorder.start("test");
 //
             audioRecorder = new AudioRecorder();
-            audioRecorder.init();
+            audioRecorder.init(mServerSocket);
             audioRecorder.start();
 
         } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-            if (amrAudioEncoder != null) {
+           /* if (amrAudioEncoder != null) {
                 amrAudioEncoder.stop();
-            }
-            if (audioRecorder != null){
+            }*/
+            if (audioRecorder != null) {
                 audioRecorder.stop();
             }
-            if (recorder != null){
+            /*if (recorder != null) {
                 recorder.stop();
-            }
+            }*/
         }
         return super.onKeyUp(keyCode, event);
     }

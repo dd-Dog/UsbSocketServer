@@ -136,7 +136,16 @@ public class ServerService extends Service {
         //每次重启服务，需要重启开启线程，避免因为异常导致APP退出，线程仍然空跑的问题
         stopServerTherad(false);
         startServerThread();
+
+        startPCMSender();
         return super.onStartCommand(intent, flags, startId);
+    }
+
+    /**
+     * 开启线程，建立发送音频数据流的socket连接
+     */
+    private void startPCMSender() {
+
     }
 
     private class ServiceHandler extends Handler {
@@ -153,7 +162,7 @@ public class ServerService extends Service {
                             e.printStackTrace();
                         }
                         break;
-                    case ClientListenerThread.MSG_LISTENER_THREAD_DIED:
+                case ClientListenerThread.MSG_LISTENER_THREAD_DIED:
                         startServerThread();
                         break;
                     case MSG_FILTER:

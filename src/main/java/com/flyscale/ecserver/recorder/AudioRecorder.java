@@ -3,12 +3,11 @@ package com.flyscale.ecserver.recorder;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaCodec;
-import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
-import android.media.MediaMuxer;
 import android.media.MediaRecorder;
-import android.text.SpannableStringBuilder;
 
+import com.flyscale.ecserver.service.PCMSender;
+import com.flyscale.ecserver.util.ArrayUtil;
 import com.flyscale.ecserver.util.DDLog;
 
 import java.io.BufferedOutputStream;
@@ -16,6 +15,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.ServerSocket;
 import java.nio.ByteBuffer;
 
 import io.kvh.media.amr.AmrEncoder;
@@ -24,9 +24,10 @@ import io.kvh.media.amr.AmrEncoder;
  * Created by bian on 2019/1/17.
  */
 
-public class AudioRecorder {
+public class AudioRecorder implements PCMSender.PCMSocketConnecteListener {
 
     public static final int SAMPLE_RATE = 16000;
+    private static final byte[] STOP_FLAG = new byte[640];
     private AudioRecord mAudioRecord;
     private State mState = State.IDLE;
     private int mMinBufferSize;
@@ -36,17 +37,29 @@ public class AudioRecorder {
     private MediaCodec.BufferInfo mEncodeBufferInfo;
     private BufferedOutputStream mMCbos;
     private FileOutputStream mMCfos;
+    private Queue<byte[]> mPCMCache;
+    private PCMSender mPCMSender;
+    private ServerSocket mServerSocket;
 
-    public void init() {
+    public void init(ServerSocket serverSocket) {
         DDLog.i(AudioRecorder.class, "init");
         mMinBufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_CONFIGURATION_MONO, AudioFormat.ENCODING_PCM_16BIT);
-
+        DDLog.i(AudioRecorder.class, "mMinBufferSize=" + mMinBufferSize);
         mAudioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC,
                 SAMPLE_RATE, //采样率
                 AudioFormat.CHANNEL_CONFIGURATION_MONO, //单声道
                 AudioFormat.ENCODING_PCM_16BIT, //编译格式16位
                 mMinBufferSize   //最小缓冲区
         );
+
+        this.mServerSocket = serverSocket;
+        mPCMCache = new Queue<>();
+
+        //PCM帧结束标志
+        STOP_FLAG[0] = 0x7F;
+        STOP_FLAG[1] = 0x7F;
+        STOP_FLAG[2] = 0x7F;
+        STOP_FLAG[3] = 0x7F;
     }
 
     public void start() {
@@ -72,6 +85,12 @@ public class AudioRecorder {
         new ReadAudioDataThread().start();
     }
 
+    @Override
+    public void onConnect() {
+        //PCM接收客户端已经连接
+        mPCMCache.setEnabled(true);
+    }
+
     /**
      * 读取音频数据线程
      */
@@ -84,10 +103,22 @@ public class AudioRecorder {
             String pcm2Amr = "/storage/emulated/legacy/pcm2amrWithOpencoreAmr.amr";
             String pcm2aac = "/storage/emulated/legacy/pcm2aac.aac";
 //            pcm2aac(pcm2aac);
+            sendPCM2Client();
             pcm2amrWithOpencoreAmr(pcm2Amr);
 //            writeData2File(testFile);
-//            copyWaveFile(testFile, testFilePlay);//给裸数据加上头文件
+            copyWaveFile(testFile, testFilePlay);//给裸数据加上头文件
         }
+    }
+
+    /**
+     * 把PCM数据发送给客户端
+     */
+    private void sendPCM2Client() {
+        DDLog.i(AudioRecorder.class, "sendPCM2Client");
+        mPCMSender = new PCMSender(mServerSocket);
+        mPCMSender.setPCMData(mPCMCache);
+        mPCMSender.start();
+        mPCMSender.setOnPCMSocketConnecteListener(this);
     }
 
     private void pcm2aac(String filePath) {
@@ -274,18 +305,29 @@ public class AudioRecorder {
         }
         //写入文件头先
         FileOutputStream fos = null;
+        FileOutputStream fosRaw = null;
         //0x23 21 41 4d 52 2d 57 42 0a AMR_WB
         final byte[] AMR_HEAD = new byte[]{0x23, 0x21, 0x41, 0x4D, 0x52, 0x0A};
+        mPCMCache.clear();
         try {
+            String testFile = "/storage/emulated/legacy/testaudiorecord.raw";
+//            fosRaw = new FileOutputStream(testFile);
+
             fos = new FileOutputStream(path, true);
             fos.write(AMR_HEAD, 0, AMR_HEAD.length);
             while (mState.isRecording()) {
                 int read = mAudioRecord.read(in, 0, in.length);
                 DDLog.i(AudioRecorder.class, "pcm2amrWithOpencoreAmr,readsize=" + read);
+
+                //PCM数据转为byte数组，并添加到缓存队列,注意这里需要使用小端模式
+                mPCMCache.push(ArrayUtil.toByteArraySmallEnd(in));
+//                fosRaw.write(ArrayUtil.toByteArraySmallEnd(in));
+
                 short[] downIn = downSample(in);
                 int byteEncoded = AmrEncoder.encode(mode, downIn, out);
                 fos.write(out, 0, out.length);
             }
+            mPCMCache.push(STOP_FLAG);
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
@@ -293,6 +335,8 @@ public class AudioRecorder {
                 assert fos != null;
                 fos.flush();
                 fos.close();
+//                fosRaw.flush();
+//                fosRaw.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
