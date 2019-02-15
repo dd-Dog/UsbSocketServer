@@ -26,6 +26,7 @@ import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 
 import com.flyscale.ecserver.MainActivity;
+import com.flyscale.ecserver.recorder.AudioRecorder;
 import com.flyscale.ecserver.recorder.Recorder;
 import com.flyscale.ecserver.SmsHandler;
 import com.flyscale.ecserver.bean.CallInfo;
@@ -48,6 +49,8 @@ import org.json.JSONObject;
 import org.json.JSONTokener;
 
 import java.io.File;
+import java.io.IOException;
+import java.net.ServerSocket;
 import java.util.List;
 import java.util.Objects;
 
@@ -70,7 +73,7 @@ public class ServerService extends Service {
     private TelephonyManager mTm;
     private MyPhoneStateListener mPhoneStateListener;
     private static Context mContext;
-    private Recorder mRecorder;
+    private AudioRecorder mRecorder;
     private int mCurrentState;
     private int mOldState = Call.State.DISCONNECTED;
     private static String mActivNumber;
@@ -89,6 +92,7 @@ public class ServerService extends Service {
     public static final int KEEP_ALIVE_INTERVAL = 40 * 1000;
     public static final int MSG_KEEP_ALIVE = 3003;
     private static final int MSG_CLIENT_TIMEOUT = 3004;
+    private ServerSocket mPCMServerSocket;
 
 
     public static String getAddress() {
@@ -119,7 +123,13 @@ public class ServerService extends Service {
         //设置为前台进程，提高优先级
         startForegournd();
         mContext = getApplicationContext();
-        mRecorder = Recorder.getInstance(this);
+        try {
+            mPCMServerSocket = new ServerSocket(Constants.LOCAL_PORT_STREAM);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        mRecorder = AudioRecorder.getInstance(this, mPCMServerSocket);
+        mRecorder.init();
         //注册动态广播接收器
         registerReceivers();
         //监听电话状态
@@ -295,7 +305,21 @@ public class ServerService extends Service {
                     DDLog.i(ServerService.class, "hide_number=" + anInt);
                     break;
                 case Constants.EVENT_TYPE_PLAY2CALL:
-                    //TODO-播放音频文件到mic
+                    DDLog.i(ServerService.class, "EVENT_TYPE_PLAY2CALL");
+                    if (PhoneUtil.isOffhook(this)) {
+                        String test = "/storage/emulated/legacy/shuaicongge.mp3";
+                        Intent playSound = new Intent(Constants.ACTION_PLAY_SOUND_2MIC);
+                        playSound.putExtra("action", true);
+                        playSound.putExtra("audio_path", test);
+                        sendBroadcast(playSound);
+                        DDLog.i(ServerService.class, "send broadcast to play sound 2 microphone");
+                    }
+                    break;
+                case Constants.EVENT_TYPE_STOP_PLAY2CALL:
+                    DDLog.i(ServerService.class, "EVENT_TYPE_STOP_PLAY2CALL");
+                    Intent playSound = new Intent(Constants.ACTION_PLAY_SOUND_2MIC);
+                    playSound.putExtra("action", false);
+                    sendBroadcast(playSound);
                     break;
                 case Constants.EVENT_TYPE_SEND_FILE:
                     String filePath = cmdObj.getString(Constants.CMD_EVENT_VALUE);
@@ -485,7 +509,7 @@ public class ServerService extends Service {
                         if (file.exists()) {
                             file.delete();
                         }
-                        while (!mRecorder.getState().isIdle()) ;
+//                        while (!mRecorder.mState.isRecording()) ;
                         DDLog.i(ServerReceiver.class, "start to recording");
                         mRecorder.start(mAddress);
                     } else if (mCurrentState == Call.State.DISCONNECTED || mCurrentState == Call.State.DISCONNECTING) {

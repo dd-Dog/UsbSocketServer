@@ -69,11 +69,11 @@ public class MainActivity extends AppCompatActivity {
 //            queue.pop();
 //        }
 //        DDLog.i(MainActivity.class, "queue=" + queue.toString());
-        try {
+     /*   try {
             mServerSocket = new ServerSocket(Constants.LOCAL_PORT_STREAM);
         } catch (IOException e) {
             e.printStackTrace();
-        }
+        }*/
     }
 
     @Override
@@ -96,9 +96,9 @@ public class MainActivity extends AppCompatActivity {
 //            recorder = Recorder.getInstance(this);
 //            recorder.start("test");
 //
-            audioRecorder = new AudioRecorder();
-            audioRecorder.init(mServerSocket);
-            audioRecorder.start();
+//            audioRecorder = new AudioRecorder();
+//            audioRecorder.init(mServerSocket);
+//            audioRecorder.start();
 
         } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
            /* if (amrAudioEncoder != null) {

@@ -1,11 +1,13 @@
 package com.flyscale.ecserver.recorder;
 
+import android.content.Context;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaCodec;
 import android.media.MediaFormat;
 import android.media.MediaRecorder;
 
+import com.flyscale.ecserver.global.Constants;
 import com.flyscale.ecserver.service.PCMSender;
 import com.flyscale.ecserver.util.ArrayUtil;
 import com.flyscale.ecserver.util.DDLog;
@@ -17,6 +19,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.nio.ByteBuffer;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import io.kvh.media.amr.AmrEncoder;
 
@@ -26,10 +30,21 @@ import io.kvh.media.amr.AmrEncoder;
 
 public class AudioRecorder implements PCMSender.PCMSocketConnecteListener {
 
+    private static final String DEFAULT_STORE_SUBDIR = "/voicecall";
+    public static final int TYPE_ERROR_SD_ACCESS = 5001;// can not access sdcard
+    public static final int START_SUCCESS = 5002;
+    public static final int START_FAILED = 5003;
+    private static final String DEFAULT_SIM_DESCRIPTOR = "sim";
+    private static final String DEFAULT_DECOLLATOR = "-";
+    private static final String DEFAULT_RECORD_SUFFIX = ".amr";
+
+
     public static final int SAMPLE_RATE = 16000;
     private static final byte[] STOP_FLAG = new byte[640];
+    private static AudioRecorder mInstance;
+    private final Context mContext;
     private AudioRecord mAudioRecord;
-    private State mState = State.IDLE;
+    public State mState = State.IDLE;
     private int mMinBufferSize;
     private MediaCodec mMediaCodec;
     private ByteBuffer[] mEncodeInputBuffers;
@@ -39,9 +54,22 @@ public class AudioRecorder implements PCMSender.PCMSocketConnecteListener {
     private FileOutputStream mMCfos;
     private Queue<byte[]> mPCMCache;
     private PCMSender mPCMSender;
-    private ServerSocket mServerSocket;
+    private static ServerSocket mServerSocket;
+    public String mFileName;
 
-    public void init(ServerSocket serverSocket) {
+    private AudioRecorder(Context context){
+        mContext = context;
+    }
+
+    public static AudioRecorder getInstance(Context context,ServerSocket serverSocket ) {
+        if (mInstance == null) {
+            mInstance = new AudioRecorder(context);
+            mServerSocket = serverSocket;
+        }
+        return mInstance;
+    }
+
+    public void init() {
         DDLog.i(AudioRecorder.class, "init");
         mMinBufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_CONFIGURATION_MONO, AudioFormat.ENCODING_PCM_16BIT);
         DDLog.i(AudioRecorder.class, "mMinBufferSize=" + mMinBufferSize);
@@ -52,7 +80,7 @@ public class AudioRecorder implements PCMSender.PCMSocketConnecteListener {
                 mMinBufferSize   //最小缓冲区
         );
 
-        this.mServerSocket = serverSocket;
+
         mPCMCache = new Queue<>();
 
         //PCM帧结束标志
@@ -62,13 +90,40 @@ public class AudioRecorder implements PCMSender.PCMSocketConnecteListener {
         STOP_FLAG[3] = 0x7F;
     }
 
-    public void start() {
-        DDLog.i(AudioRecorder.class, "start");
+    public int start(String number) {
+        DDLog.i(AudioRecorder.class, "start,mState=" + mState);
+        String root = Constants.RECORDER_ROOT_PATH;
+        DDLog.i(AudioRecorder.class, "recording path=" + root);
+        File base = new File(root + DEFAULT_STORE_SUBDIR);
+        if (!base.isDirectory() && !base.mkdir()) {
+            DDLog.e(Recorder.class, "Recording File aborted - can't create base directory : " + base.getPath());
+            return TYPE_ERROR_SD_ACCESS;
+        }
+        SimpleDateFormat sdf = new SimpleDateFormat("'voicecall'-yyyyMMddHHmmss");
+        String fileName = sdf.format(new Date());
+        /* Naming record file with number and sim card feature. */
+        int slotId = 0;
+        if (slotId >= 0) {
+            fileName = DEFAULT_SIM_DESCRIPTOR + String.valueOf(slotId + 1)
+                    + DEFAULT_DECOLLATOR + fileName;
+        }
+        if (number != null) {
+            fileName = number + DEFAULT_DECOLLATOR + fileName;
+        }
+        fileName = base.getPath() + File.separator + fileName + DEFAULT_RECORD_SUFFIX;
+        mFileName = fileName;
+        DDLog.i(AudioRecorder.class, "mFileName=" + mFileName);
+
+        if (mAudioRecord == null){
+            init();
+        }
         if (mAudioRecord != null && mState.isIdle()) {
             mAudioRecord.startRecording();
             mState = State.RECORDING;
             startReadThread();
+            return START_SUCCESS;
         }
+        return START_FAILED;
     }
 
     public void stop() {
@@ -82,6 +137,7 @@ public class AudioRecorder implements PCMSender.PCMSocketConnecteListener {
     }
 
     private void startReadThread() {
+        DDLog.i(AudioRecorder.class, "startReadThread");
         new ReadAudioDataThread().start();
     }
 
@@ -98,15 +154,14 @@ public class AudioRecorder implements PCMSender.PCMSocketConnecteListener {
         @Override
         public void run() {
             super.run();
-            String testFile = "/storage/emulated/legacy/testaudiorecord.raw";
-            String testFilePlay = "/storage/emulated/legacy/testaudiorecordplay.wav";
-            String pcm2Amr = "/storage/emulated/legacy/pcm2amrWithOpencoreAmr.amr";
-            String pcm2aac = "/storage/emulated/legacy/pcm2aac.aac";
-//            pcm2aac(pcm2aac);
+//            String testFile = "/storage/emulated/legacy/testaudiorecord.raw";
+//            String testFilePlay = "/storage/emulated/legacy/testaudiorecordplay.wav";
+//            String pcm2Amr = "/storage/emulated/legacy/pcm2amrWithOpencoreAmr.amr";
+//            String pcm2aac = "/storage/emulated/legacy/pcm2aac.aac";
             sendPCM2Client();
-            pcm2amrWithOpencoreAmr(pcm2Amr);
+            pcm2amrWithOpencoreAmr(mFileName);
 //            writeData2File(testFile);
-            copyWaveFile(testFile, testFilePlay);//给裸数据加上头文件
+//            copyWaveFile(testFile, testFilePlay);//给裸数据加上头文件
         }
     }
 
@@ -121,36 +176,13 @@ public class AudioRecorder implements PCMSender.PCMSocketConnecteListener {
         mPCMSender.setOnPCMSocketConnecteListener(this);
     }
 
-    private void pcm2aac(String filePath) {
-        start(filePath);
-        short[] in = new short[160];
-        while (mState.isRecording()) {
-            int read = mAudioRecord.read(in, 0, in.length);
-            DDLog.i(AudioRecorder.class, "pcm2aac,readsize=" + read);
-            byte[] inBytes = toByteArray(in);
-            flow(inBytes, inBytes.length);
-        }
-        stop();
-    }
-
-    public static byte[] toByteArray(short[] src) {
-
-        int count = src.length;
-        byte[] dest = new byte[count << 1];
-        for (int i = 0; i < count; i++) {
-            dest[i * 2] = (byte) (src[i] >> 8);
-            dest[i * 2 + 1] = (byte) (src[i] >> 0);
-        }
-
-        return dest;
-    }
 
     /**
      * 使用MediaCodec进行编码
      *
      * @param filePath
      */
-    public void start(String filePath) {
+    /*public void start(String filePath) {
         try {
             mMCfos = new FileOutputStream(filePath);
             mMCbos = new BufferedOutputStream(mMCfos, 200 * 1024);
@@ -173,62 +205,8 @@ public class AudioRecorder implements PCMSender.PCMSocketConnecteListener {
 
         //调用MediaCodec的start()方法，此时MediaCodec处于Executing状态
         mMediaCodec.start();
-    }
+    }*/
 
-    public void flow(byte[] bytes, int size) {
-        int inputIndex;
-        ByteBuffer inputBuffer;
-        int outputIndex;
-        ByteBuffer outputBuffer;
-        byte[] chunkAudio;
-        int outBitSize;
-        int outPacketSize;
-        //通过getInputBuffers()方法和getOutputBuffers()方法获取缓存队列
-        mEncodeInputBuffers = mMediaCodec.getInputBuffers();
-        mEncodeOutputBuffers = mMediaCodec.getOutputBuffers();
-        //用于存储ByteBuffer的信息
-        mEncodeBufferInfo = new MediaCodec.BufferInfo();
-
-        //首先通过dequeueInputBuffer(long timeoutUs)请求一个输入缓存，timeoutUs代表等待时间，设置为-1代表无限等待
-        int inputBufferIndex = mMediaCodec.dequeueInputBuffer(-1);
-
-        //返回的整型变量为请求到的输入缓存的index，通过getInputBuffers()得到的输入缓存数组,再用index和输入缓存数组即可得到当前请求的输入缓存
-        if (inputBufferIndex >= 0) {
-            inputBuffer = mEncodeInputBuffers[inputBufferIndex];
-            //使用之前要clear一下，避免之前的缓存数据影响当前数据
-            inputBuffer.clear();
-            //把数据添加到输入缓存中，
-            inputBuffer.put(bytes);
-            //并调用queueInputBuffer()把缓存数据入队
-            mMediaCodec.queueInputBuffer(inputBufferIndex, 0, size, 0, 0);
-        }
-        //通过dequeueOutputBuffer(BufferInfo info, long timeoutUs)来请求一个输出缓存,传入一个上面的BufferInfo对象
-        outputIndex = mMediaCodec.dequeueOutputBuffer(mEncodeBufferInfo, 10000);
-        //然后通过返回的index得到输出缓存，并通过BufferInfo获取ByteBuffer的信息
-        while (outputIndex >= 0) {
-            outBitSize = mEncodeBufferInfo.size;
-
-            //添加ADTS头,ADTS头包含了AAC文件的采样率、通道数、帧数据长度等信息。
-            outPacketSize = outBitSize + 7;//7为ADTS头部的大小
-            outputBuffer = mEncodeOutputBuffers[outputIndex];//拿到输出Buffer
-            outputBuffer.position(mEncodeBufferInfo.offset);
-            outputBuffer.limit(mEncodeBufferInfo.offset + outBitSize);
-            chunkAudio = new byte[outPacketSize];
-            addADTStoPacket(chunkAudio, outPacketSize);//添加ADTS 代码后面会贴上
-            outputBuffer.get(chunkAudio, 7, outBitSize);//将编码得到的AAC数据 取出到byte[]中偏移量offset=7
-            outputBuffer.position(mEncodeBufferInfo.offset);
-            //showLog("outPacketSize:" + outPacketSize + " encodeOutBufferRemain:" + outputBuffer.remaining());
-            try {
-                mMCbos.write(chunkAudio, 0, chunkAudio.length);//BufferOutputStream 将文件保存到内存卡中 *.aac
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            //releaseOutputBuffer方法必须调用
-            mMediaCodec.releaseOutputBuffer(outputIndex, false);
-            outputIndex = mMediaCodec.dequeueOutputBuffer(mEncodeBufferInfo, 10000);
-
-        }
-    }
 
     /**
      * 添加ADTS头
@@ -471,7 +449,7 @@ public class AudioRecorder implements PCMSender.PCMSocketConnecteListener {
         out.write(header, 0, 44);
     }
 
-    enum State {
+    public enum State {
         IDLE,
         RECORDING;
 

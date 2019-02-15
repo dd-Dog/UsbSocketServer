@@ -82,6 +82,7 @@ public class Constants {
 
     /*定义一些指令 @author bianjb*/
     public static final String EVENT_TYPE_PLAY2CALL = "102";//通话播放MP3
+    public static final String EVENT_TYPE_STOP_PLAY2CALL = "112";//通话播放MP3
     public static final String EVENT_TYPE_SEND_FILE = "103";//发送文件给客户端
     public static final String EVENT_TYPE_GET_APPINFO = "104";
     public static final String KEEP_ALIVE_TYPE = "101"; //保活
@@ -110,6 +111,8 @@ public class Constants {
     /*免提状态广播*/
     public static final String ACTION_HANDFREE_STATE = "com.flyscale.dialer.ACTION_HANDFREE_STATE";
 
+    /*通话中播放指定音频*/
+    public static final String ACTION_PLAY_SOUND_2MIC = "com.flyscale.ecserver.PLAY_SOUND_2MIC";
     /*升级ECServer的广播，由ECHelper完成*/
     public static final String ACTION_UPDATE_APP = "com.flyscale.ecserver.UPDATE_APP";
     /*由ECHelper发来的升级ECServer的结果广播*/
