@@ -27,6 +27,12 @@ public class Constants {
     public static final String EVENT_TYPE_SENDSMS = "14";        //发送短信
     public static final String EVENT_TYPE_INSTALLAPP = "15";     //更新Servic app
     public static final String EVENT_TYPE_HIDEDIALNUMBER = "16"; //隐藏号码
+    public static final String EVENT_TYPE_OUTTIME_GETCALL = "17";//超时自动接听电话，进行机器人通话
+    public static final String EVENT_TYPE_AUTO_REPLY_AUDIO = "18";//自动回复音频文件给对方
+    public static final String EVENT_TYPE_CHANGE_MANUAL_WORK = "19";//切换人工通话
+    public static final String EVENT_TYPE_SET_VOICE_TO_STR = "20";//返回app识别的离线数据
+    public static final String EVENT_TYPE_PC_TO_APP_DATA = "21";//pc端通过service发送数据到app中
+    public static final String EVENT_TYPE_AUTO_REPLY_OVER = "22";//自动答复，一段录音完成
 
 
     //CALL STATE
@@ -112,6 +118,8 @@ public class Constants {
     public static final String ACTION_HANDFREE_STATE = "com.flyscale.dialer.ACTION_HANDFREE_STATE";
 
     /*通话中播放指定音频*/
+    public static final String ACTION_PLAY_SOUND_2MIC_RESULT = "com.flyscale.echelper.PLAY_SOUND_2MIC_RESULT";
+    /*通话中播放指定音频是否完成*/
     public static final String ACTION_PLAY_SOUND_2MIC = "com.flyscale.ecserver.PLAY_SOUND_2MIC";
     /*升级ECServer的广播，由ECHelper完成*/
     public static final String ACTION_UPDATE_APP = "com.flyscale.ecserver.UPDATE_APP";

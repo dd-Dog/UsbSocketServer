@@ -305,15 +305,22 @@ public class ServerService extends Service {
                     DDLog.i(ServerService.class, "hide_number=" + anInt);
                     break;
                 case Constants.EVENT_TYPE_PLAY2CALL:
-                    DDLog.i(ServerService.class, "EVENT_TYPE_PLAY2CALL");
+                case Constants.EVENT_TYPE_AUTO_REPLY_AUDIO:
                     if (PhoneUtil.isOffhook(this)) {
-                        String test = "/storage/emulated/legacy/shuaicongge.mp3";
+                        String audioPath = cmdObj.getString(Constants.CMD_EVENT_VALUE);
+//                        String test = "/storage/emulated/legacy/shuaicongge.mp3";
                         Intent playSound = new Intent(Constants.ACTION_PLAY_SOUND_2MIC);
                         playSound.putExtra("action", true);
-                        playSound.putExtra("audio_path", test);
+                        playSound.putExtra("audio_path", audioPath);
                         sendBroadcast(playSound);
                         DDLog.i(ServerService.class, "send broadcast to play sound 2 microphone");
                     }
+                    break;
+                case Constants.EVENT_TYPE_OUTTIME_GETCALL:
+                    //TODO 超时自动接听，机器人回复
+                    break;
+                case Constants.EVENT_TYPE_CHANGE_MANUAL_WORK:
+
                     break;
                 case Constants.EVENT_TYPE_STOP_PLAY2CALL:
                     DDLog.i(ServerService.class, "EVENT_TYPE_STOP_PLAY2CALL");
@@ -544,6 +551,10 @@ public class ServerService extends Service {
                         break;
                 }
                 mServerThread.sendMsg2Client(eventInfo.toJson());
+            }else if (TextUtils.equals(intent.getAction(), Constants.ACTION_PLAY_SOUND_2MIC_RESULT)){
+                EventInfo result = new EventInfo();
+                result.EventType = Constants.EVENT_TYPE_AUTO_REPLY_OVER;
+                mServerThread.sendMsg2Client(result.toJson());
             }
         }
 
@@ -725,6 +736,7 @@ public class ServerService extends Service {
         intentFilter.addAction(Constants.ACTION_UPDATE_RESULT);
         intentFilter.addAction(Constants.ACTION_HANDFREE_STATE);
         intentFilter.addAction(Constants.ACTION_HOOK_STATE);
+        intentFilter.addAction(Constants.ACTION_PLAY_SOUND_2MIC_RESULT);
         registerReceiver(mServerReceiver, intentFilter);
 
         mSmsReceiver = new SmsReceiver();

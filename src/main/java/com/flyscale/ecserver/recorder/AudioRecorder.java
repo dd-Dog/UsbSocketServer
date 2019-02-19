@@ -37,6 +37,8 @@ public class AudioRecorder implements PCMSender.PCMSocketConnecteListener {
     private static final String DEFAULT_SIM_DESCRIPTOR = "sim";
     private static final String DEFAULT_DECOLLATOR = "-";
     private static final String DEFAULT_RECORD_SUFFIX = ".amr";
+    private static final int PCM_POINTS_EACH_AMR_FRAME = 160;
+    private static final int AMR_FRAME_BYTES = 32;
 
 
     public static final int SAMPLE_RATE = 16000;
@@ -57,11 +59,11 @@ public class AudioRecorder implements PCMSender.PCMSocketConnecteListener {
     private static ServerSocket mServerSocket;
     public String mFileName;
 
-    private AudioRecorder(Context context){
+    private AudioRecorder(Context context) {
         mContext = context;
     }
 
-    public static AudioRecorder getInstance(Context context,ServerSocket serverSocket ) {
+    public static AudioRecorder getInstance(Context context, ServerSocket serverSocket) {
         if (mInstance == null) {
             mInstance = new AudioRecorder(context);
             mServerSocket = serverSocket;
@@ -114,7 +116,7 @@ public class AudioRecorder implements PCMSender.PCMSocketConnecteListener {
         mFileName = fileName;
         DDLog.i(AudioRecorder.class, "mFileName=" + mFileName);
 
-        if (mAudioRecord == null){
+        if (mAudioRecord == null) {
             init();
         }
         if (mAudioRecord != null && mState.isIdle()) {
@@ -273,9 +275,9 @@ public class AudioRecorder implements PCMSender.PCMSocketConnecteListener {
     private void pcm2amrWithOpencoreAmr(String path) {
         AmrEncoder.init(0);
         int mode = AmrEncoder.Mode.MR122.ordinal();
-        //每次读取320个PCM采样，最终经过下采样转为160个采样，压缩为一个AMR帧
-        short[] in = new short[320];//short array read from AudioRecorder, length 160
-        byte[] out = new byte[32];//output amr frame, length 32
+        //每次读取1280个PCM采样，最终经过下采样转为640个采样，压缩为4个AMR帧
+        short[] in = new short[PCM_POINTS_EACH_AMR_FRAME * 8];//short array read from AudioRecorder
+        byte[] out = new byte[AMR_FRAME_BYTES];//output amr frame, length 32
 
         File file = new File(path);
         if (file.exists()) {
@@ -295,15 +297,19 @@ public class AudioRecorder implements PCMSender.PCMSocketConnecteListener {
             fos.write(AMR_HEAD, 0, AMR_HEAD.length);
             while (mState.isRecording()) {
                 int read = mAudioRecord.read(in, 0, in.length);
-                DDLog.i(AudioRecorder.class, "pcm2amrWithOpencoreAmr,readsize=" + read);
+                DDLog.i(AudioRecorder.class, "pcm2amrWithOpencoreAmr,readsize=" + read + ",in.length=" + in.length + "-------");
 
                 //PCM数据转为byte数组，并添加到缓存队列,注意这里需要使用小端模式
                 mPCMCache.push(ArrayUtil.toByteArraySmallEnd(in));
 //                fosRaw.write(ArrayUtil.toByteArraySmallEnd(in));
 
                 short[] downIn = downSample(in);
-                int byteEncoded = AmrEncoder.encode(mode, downIn, out);
-                fos.write(out, 0, out.length);
+                for (int i = 0; i < 4; i++) {
+                    short[] tmp = new short[PCM_POINTS_EACH_AMR_FRAME];
+                    System.arraycopy(downIn, i * PCM_POINTS_EACH_AMR_FRAME, tmp, 0, PCM_POINTS_EACH_AMR_FRAME);
+                    int byteEncoded = AmrEncoder.encode(mode, tmp, out);
+                    fos.write(out, 0, out.length);
+                }
             }
             mPCMCache.push(STOP_FLAG);
         } catch (Exception e) {
@@ -331,7 +337,7 @@ public class AudioRecorder implements PCMSender.PCMSocketConnecteListener {
      */
     private short[] downSample(short[] in) {
         short[] down = new short[in.length / 2];
-        for (int i = 0,j=0; i < in.length; i += 2,j++) {
+        for (int i = 0, j = 0; i < in.length; i += 2, j++) {
             down[j] = in[i];
         }
         return down;
