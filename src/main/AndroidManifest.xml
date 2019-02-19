@@ -23,8 +23,8 @@
     <uses-permission android:name="android.permission.MODIFY_PHONE_STATE"/>
 
     <!--绑定call service 声明权限-->
-    <permission android:name="android.permission.BIND_CALL_SERVICE" />
-    <uses-permission android:name="android.permission.BIND_CALL_SERVICE" />
+    <permission android:name="com.flyscale.ecserver.permission.BIND_EC_SERVER_SERVICE"
+        android:protectionLevel="normal"/>
 
     <!--persistent 设置常驻内存-->
     <application
@@ -46,7 +46,12 @@
         </activity>
 
         <service android:name=".service.ServerService"
-            />
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.flyscale.ecserver.BIND_ECSERVICE"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+        </service>
 
         <receiver android:name=".EcServerReceiver">
             <intent-filter>

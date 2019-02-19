@@ -161,6 +161,9 @@ public class Constants {
     /*重启前一次的log文件名*/
     public static final String PRELOG_FILE_NAME = "pcservice_pre.log";
 
+    /*绑定service权限*/
+    public static final String BIND_SERVICE_PERMISSION = "com.flyscale.ecserver.permission.BIND_EC_SERVER_SERVICE";
+
 
     /*不同运营商对应的mcc mnc*/
     static {

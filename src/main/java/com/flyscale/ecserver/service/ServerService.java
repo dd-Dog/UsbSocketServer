@@ -18,6 +18,8 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
+import android.os.Parcel;
+import android.os.RemoteException;
 import android.provider.Settings;
 import android.telephony.PhoneStateListener;
 import android.telephony.SmsManager;
@@ -25,6 +27,8 @@ import android.telephony.SmsMessage;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 
+import com.flyscale.ecapp.IDataInfo;
+import com.flyscale.ecserver.IListenService;
 import com.flyscale.ecserver.MainActivity;
 import com.flyscale.ecserver.recorder.AudioRecorder;
 import com.flyscale.ecserver.recorder.Recorder;
@@ -93,6 +97,7 @@ public class ServerService extends Service {
     public static final int MSG_KEEP_ALIVE = 3003;
     private static final int MSG_CLIENT_TIMEOUT = 3004;
     private ServerSocket mPCMServerSocket;
+    private IDataInfo mIDataInfo;
 
 
     public static String getAddress() {
@@ -172,7 +177,7 @@ public class ServerService extends Service {
                             e.printStackTrace();
                         }
                         break;
-                case ClientListenerThread.MSG_LISTENER_THREAD_DIED:
+                    case ClientListenerThread.MSG_LISTENER_THREAD_DIED:
                         startServerThread();
                         break;
                     case MSG_FILTER:
@@ -465,7 +470,7 @@ public class ServerService extends Service {
                     mServerThread.sendMsg2Client(eventInfo.toJson());
                     mHookFilter = false;
                     mHandler.sendEmptyMessageDelayed(MSG_FILTER, 500);
-                }else {
+                } else {
                     DDLog.i(ServerReceiver.class, "hook_state is ignored!");
                 }
 
@@ -525,7 +530,7 @@ public class ServerService extends Service {
                 }
                 mOldState = mCurrentState;
                 notifyPhoneState(mCurrentState, true);
-                if (mCurrentState == Call.State.DISCONNECTED){
+                if (mCurrentState == Call.State.DISCONNECTED) {
                     //如果是已经挂断状态，在通知状态后把当前状态改为IDLE
                     mCurrentState = Call.State.IDLE;
                 }
@@ -551,7 +556,7 @@ public class ServerService extends Service {
                         break;
                 }
                 mServerThread.sendMsg2Client(eventInfo.toJson());
-            }else if (TextUtils.equals(intent.getAction(), Constants.ACTION_PLAY_SOUND_2MIC_RESULT)){
+            } else if (TextUtils.equals(intent.getAction(), Constants.ACTION_PLAY_SOUND_2MIC_RESULT)) {
                 EventInfo result = new EventInfo();
                 result.EventType = Constants.EVENT_TYPE_AUTO_REPLY_OVER;
                 mServerThread.sendMsg2Client(result.toJson());
@@ -655,21 +660,69 @@ public class ServerService extends Service {
         }
     }
 
-    public class ServerBinder extends Binder {
-        public ServerService getService() {
+    public void test() {
+        DDLog.i(ServerBinder.class, "hello, this is ServerBinder");
+    }
+
+
+    //    public class ServerBinder extends IListenService.
+    public class ServerBinder extends IListenService.Stub {
+        private ServerService getService() {
             return ServerService.this;
         }
 
-    }
+        @Override
+        public void setCallBack(IDataInfo info) throws RemoteException {
+            DDLog.i(ServerBinder.class, "setCallBack");
+            //设置回调
+            mIDataInfo = info;
+        }
 
-    public void test() {
-        DDLog.i(ServerBinder.class, "hello, this is ServerBinder");
+        @Override
+        public void setVoiceData(String data) throws RemoteException {
+            DDLog.i(ServerBinder.class, "setVoiceData,data=" + data);
+            EventInfo eventInfo = new EventInfo(Constants.EVENT_TYPE_SET_VOICE_TO_STR, data);
+            if (mServerThread != null) {
+                mServerThread.sendMsg2Client(eventInfo.toJson());
+            }
+        }
+
+        @Override
+        public boolean onTransact(int code, Parcel data, Parcel reply, int flags) throws RemoteException {
+            DDLog.i(ServerBinder.class, "onTransact");
+            //权限验证
+            int check = checkCallingPermission(Constants.BIND_SERVICE_PERMISSION);
+            if(check == PackageManager.PERMISSION_DENIED){
+                DDLog.w(ServerBinder.class, "permission denied!");
+                return false;
+            }
+            //包名验证
+            String packageName = null;
+            String[] packages = getPackageManager().getPackagesForUid(getCallingUid());
+            if(packages != null && packages.length > 0){
+                packageName = packages[0];
+                DDLog.i(ServerBinder.class, "calling packageName=" + packageName);
+            }
+            assert packageName != null;
+            if(!packageName.startsWith("com")){
+                DDLog.w(ServerBinder.class, "package is not granted!");
+                return false;
+            }
+            return super.onTransact(code, data, reply, flags);
+        }
     }
 
     @Override
     public IBinder onBind(Intent intent) {
         DDLog.i(ServerService.class, "onBind");
-        mServerBinder = new ServerBinder();
+//        int check = checkCallingPermission(Constants.BIND_SERVICE_PERMISSION);
+//        if (check == PackageManager.PERMISSION_DENIED){
+//            DDLog.i(ServerService.class, "permission denied!");
+//            return null;
+//        }
+
+        if (mServerBinder == null)
+            mServerBinder = new ServerBinder();
         return mServerBinder;
     }
 
@@ -686,7 +739,6 @@ public class ServerService extends Service {
     }
 
     /**
-     *
      * @param restart 是否重启线程
      */
     private void stopServerTherad(boolean restart) {

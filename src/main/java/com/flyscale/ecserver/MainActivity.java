@@ -120,8 +120,8 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
-            mServerService = ((ServerService.ServerBinder) service).getService();
-            mServerService.test();
+//            mServerService = ((ServerService.ServerBinder) service).getService();
+//            mServerService.test();
         }
 
         @Override
