@@ -580,34 +580,34 @@ public class ServerService extends Service {
         String ecCallState = Constants.CALL_STATE_IDLE;
         switch (state) {
             case Call.State.ACTIVE://电话接通
-                ecPhoneState = Constants.PHONE_STATE_OFFHOOK;
                 ecCallState = Constants.CALL_STATE_OFFHOOK_IN;
+                ecPhoneState = Constants.PHONE_STATE_OFFHOOK;
                 break;
             case Call.State.CALL_WAITING://电话等待
-                ecPhoneState = Constants.PHONE_STATE_WAIT;
                 ecCallState = Constants.CALL_STATE_RINGING_IN;
+                ecPhoneState = Constants.PHONE_STATE_WAIT;
                 break;
             case Call.State.CONFERENCED://电话会议
                 break;
             case Call.State.DIALING://拨号中
-                ecPhoneState = Constants.PHONE_STATE_RINGING_OUT;
                 ecCallState = Constants.CALL_STATE_RINGING_OUT;
+                ecPhoneState = Constants.PHONE_STATE_RINGING_OUT;
                 break;
             case Call.State.DISCONNECTED://已挂断
-                ecPhoneState = Constants.PHONE_STATE_DISCONNECT;
                 ecCallState = Constants.CALL_STATE_RINGING_OUT;
+                ecPhoneState = Constants.PHONE_STATE_DISCONNECT;
                 break;
             case Call.State.DISCONNECTING://正在挂断
                 ecPhoneState = Constants.PHONE_STATE_DISCONNECTING;
                 ecCallState = Constants.CALL_STATE_RINGING_OUT;
                 break;
             case Call.State.IDLE://待机状态
-                ecPhoneState = Constants.PHONE_STATE_IDLE;
                 ecCallState = Constants.CALL_STATE_IDLE;
+                ecPhoneState = Constants.PHONE_STATE_IDLE;
                 break;
             case Call.State.INCOMING://有来电
-                ecPhoneState = Constants.PHONE_STATE_RING_IN;
                 ecCallState = Constants.CALL_STATE_RINGING_IN;
+                ecPhoneState = Constants.PHONE_STATE_RING_IN;
                 break;
             case Call.State.ONHOLD://
                 return;
@@ -663,10 +663,6 @@ public class ServerService extends Service {
         }
     }
 
-    public void test() {
-        DDLog.i(ServerBinder.class, "hello, this is ServerBinder");
-    }
-
 
     //public class ServerBinder extends IListenService.
     public class ServerBinder extends IListenService.Stub {
@@ -682,18 +678,6 @@ public class ServerService extends Service {
             if (mRecorder != null) {
                 mRecorder.setIDataInfo(mIDataInfo);
             }
-/*            Timer timer = new Timer();
-            timer.schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    byte[] bytes = {1, 2, 3, 4};
-                    try {
-                        mIDataInfo.getAudioData(bytes, bytes.length);
-                    } catch (RemoteException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }, 5000);*/
         }
 
         @Override

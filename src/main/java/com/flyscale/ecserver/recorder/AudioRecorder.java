@@ -187,14 +187,8 @@ public class AudioRecorder implements PCMSocketSender.PCMSocketConnecteListener 
         @Override
         public void run() {
             super.run();
-//            String testFile = "/storage/emulated/legacy/testaudiorecord.raw";
-//            String testFilePlay = "/storage/emulated/legacy/testaudiorecordplay.wav";
-//            String pcm2Amr = "/storage/emulated/legacy/pcm2amrWithOpencoreAmr.amr";
-//            String pcm2aac = "/storage/emulated/legacy/pcm2aac.aac";
             sendPCM2Client();
             pcm2amrWithOpencoreAmr(mFileName);
-//            writeData2File(testFile);
-//            copyWaveFile(testFile, testFilePlay);//给裸数据加上头文件
         }
     }
 
@@ -214,37 +208,6 @@ public class AudioRecorder implements PCMSocketSender.PCMSocketConnecteListener 
         mPCMIPCSender.setPCMData(mPCMIPCCache);
         mPCMIPCSender.start();
     }
-
-
-    /**
-     * 使用MediaCodec进行编码
-     *
-     * @param filePath
-     */
-    /*public void start(String filePath) {
-        try {
-            mMCfos = new FileOutputStream(filePath);
-            mMCbos = new BufferedOutputStream(mMCfos, 200 * 1024);
-
-            //参数对应-> mime type、采样率、声道数
-            MediaFormat encodeFormat = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AMR_NB, SAMPLE_RATE, 1);
-//            encodeFormat.setInteger(MediaFormat.KEY_BIT_RATE, 128 * 100);//比特率
-
-            encodeFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 16 * 1024);
-            mMediaCodec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AMR_NB);
-            mMediaCodec.configure(encodeFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        if (mMediaCodec == null) {
-            DDLog.e(AudioRecorder.class, "create mediaEncode failed");
-            return;
-        }
-
-        //调用MediaCodec的start()方法，此时MediaCodec处于Executing状态
-        mMediaCodec.start();
-    }*/
 
 
     /**
