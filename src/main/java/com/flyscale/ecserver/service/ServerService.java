@@ -55,8 +55,11 @@ import org.json.JSONTokener;
 import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.sql.Time;
 import java.util.List;
 import java.util.Objects;
+import java.util.Timer;
+import java.util.TimerTask;
 
 
 /**
@@ -133,7 +136,7 @@ public class ServerService extends Service {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        mRecorder = AudioRecorder.getInstance(this, mPCMServerSocket);
+        mRecorder = AudioRecorder.getInstance(this, mPCMServerSocket, mIDataInfo);
         mRecorder.init();
         //注册动态广播接收器
         registerReceivers();
@@ -665,7 +668,7 @@ public class ServerService extends Service {
     }
 
 
-    //    public class ServerBinder extends IListenService.
+    //public class ServerBinder extends IListenService.
     public class ServerBinder extends IListenService.Stub {
         private ServerService getService() {
             return ServerService.this;
@@ -673,9 +676,24 @@ public class ServerService extends Service {
 
         @Override
         public void setCallBack(IDataInfo info) throws RemoteException {
-            DDLog.i(ServerBinder.class, "setCallBack");
+            DDLog.i(ServerBinder.class, "setCallBack,thread=" + Thread.currentThread().getName());
             //设置回调
             mIDataInfo = info;
+            if (mRecorder != null) {
+                mRecorder.setIDataInfo(mIDataInfo);
+            }
+/*            Timer timer = new Timer();
+            timer.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    byte[] bytes = {1, 2, 3, 4};
+                    try {
+                        mIDataInfo.getAudioData(bytes, bytes.length);
+                    } catch (RemoteException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }, 5000);*/
         }
 
         @Override
@@ -692,19 +710,19 @@ public class ServerService extends Service {
             DDLog.i(ServerBinder.class, "onTransact");
             //权限验证
             int check = checkCallingPermission(Constants.BIND_SERVICE_PERMISSION);
-            if(check == PackageManager.PERMISSION_DENIED){
+            if (check == PackageManager.PERMISSION_DENIED) {
                 DDLog.w(ServerBinder.class, "permission denied!");
                 return false;
             }
             //包名验证
             String packageName = null;
             String[] packages = getPackageManager().getPackagesForUid(getCallingUid());
-            if(packages != null && packages.length > 0){
+            if (packages != null && packages.length > 0) {
                 packageName = packages[0];
                 DDLog.i(ServerBinder.class, "calling packageName=" + packageName);
             }
             assert packageName != null;
-            if(!packageName.startsWith("com")){
+            if (!packageName.startsWith("com")) {
                 DDLog.w(ServerBinder.class, "package is not granted!");
                 return false;
             }

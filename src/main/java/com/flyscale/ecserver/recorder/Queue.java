@@ -9,14 +9,14 @@ public class Queue<T> {
 
     private Node mHead; //head是一个空结点
     private Node mTail;//尾结点
-    private boolean mEnabled;
+    private boolean mEnabled;//默认不可用
 
     public Queue() {
         mHead = new Node(null);
         mTail = mHead;
         mHead.next = mTail;
         mTail.pre = mHead;
-        mEnabled = false;
+        mEnabled = false;//默认不可用，如果要出入栈需要进行设置
     }
 
     /**

@@ -4,13 +4,15 @@ import android.content.Context;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaCodec;
-import android.media.MediaFormat;
 import android.media.MediaRecorder;
 
+import com.flyscale.ecapp.IDataInfo;
 import com.flyscale.ecserver.global.Constants;
-import com.flyscale.ecserver.service.PCMSender;
+import com.flyscale.ecserver.service.PCMIPCSender;
+import com.flyscale.ecserver.service.PCMSocketSender;
 import com.flyscale.ecserver.util.ArrayUtil;
 import com.flyscale.ecserver.util.DDLog;
+import com.flyscale.ecserver.util.PreferenceUtil;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -28,7 +30,7 @@ import io.kvh.media.amr.AmrEncoder;
  * Created by bian on 2019/1/17.
  */
 
-public class AudioRecorder implements PCMSender.PCMSocketConnecteListener {
+public class AudioRecorder implements PCMSocketSender.PCMSocketConnecteListener {
 
     private static final String DEFAULT_STORE_SUBDIR = "/voicecall";
     public static final int TYPE_ERROR_SD_ACCESS = 5001;// can not access sdcard
@@ -54,10 +56,13 @@ public class AudioRecorder implements PCMSender.PCMSocketConnecteListener {
     private MediaCodec.BufferInfo mEncodeBufferInfo;
     private BufferedOutputStream mMCbos;
     private FileOutputStream mMCfos;
-    private Queue<byte[]> mPCMCache;
-    private PCMSender mPCMSender;
+    private Queue<byte[]> mPCMSocketCache;
+    private PCMSocketSender mPCMSocketSender;
     private static ServerSocket mServerSocket;
     public String mFileName;
+    private static IDataInfo mIDataInfo;
+    private PCMIPCSender mPCMIPCSender;
+    private Queue<byte[]> mPCMIPCCache;
 
     private AudioRecorder(Context context) {
         mContext = context;
@@ -67,6 +72,15 @@ public class AudioRecorder implements PCMSender.PCMSocketConnecteListener {
         if (mInstance == null) {
             mInstance = new AudioRecorder(context);
             mServerSocket = serverSocket;
+        }
+        return mInstance;
+    }
+
+    public static AudioRecorder getInstance(Context context, ServerSocket mPCMServerSocket, IDataInfo iDataInfo) {
+        if (mInstance == null) {
+            mInstance = new AudioRecorder(context);
+            mServerSocket = mPCMServerSocket;
+            mIDataInfo = iDataInfo;
         }
         return mInstance;
     }
@@ -83,7 +97,11 @@ public class AudioRecorder implements PCMSender.PCMSocketConnecteListener {
         );
 
 
-        mPCMCache = new Queue<>();
+        mPCMSocketCache = new Queue<>();
+        mPCMIPCCache = new Queue<>();
+        if (mIDataInfo != null) {//如果 Binder已经连接则可以开始缓存
+            mPCMIPCCache.setEnabled(true);
+        }
 
         //PCM帧结束标志
         STOP_FLAG[0] = 0x7F;
@@ -145,9 +163,22 @@ public class AudioRecorder implements PCMSender.PCMSocketConnecteListener {
 
     @Override
     public void onConnect() {
-        //PCM接收客户端已经连接
-        mPCMCache.setEnabled(true);
+        //PCM接收客户端已经连接，则开始缓存PCM数据
+        mPCMSocketCache.setEnabled(true);
     }
+
+    public void setIDataInfo(IDataInfo iDataInfo) {
+        DDLog.i(AudioRecorder.class, "setIDataInfo");
+        mIDataInfo = iDataInfo;
+        if (mPCMIPCSender != null) {
+            mPCMIPCSender.setIDataInfo(mIDataInfo);
+        }
+
+        if (mIDataInfo != null) {//如果Binder已经连接，则可以开始缓存
+            mPCMIPCCache.setEnabled(true);
+        }
+    }
+
 
     /**
      * 读取音频数据线程
@@ -172,10 +203,16 @@ public class AudioRecorder implements PCMSender.PCMSocketConnecteListener {
      */
     private void sendPCM2Client() {
         DDLog.i(AudioRecorder.class, "sendPCM2Client");
-        mPCMSender = new PCMSender(mServerSocket);
-        mPCMSender.setPCMData(mPCMCache);
-        mPCMSender.start();
-        mPCMSender.setOnPCMSocketConnecteListener(this);
+        //Socket发送线程
+        mPCMSocketSender = new PCMSocketSender(mServerSocket);
+        mPCMSocketSender.setPCMData(mPCMSocketCache);
+        mPCMSocketSender.start();
+        mPCMSocketSender.setOnPCMSocketConnecteListener(this);
+
+        //Binder发送线程
+        mPCMIPCSender = new PCMIPCSender(mIDataInfo);
+        mPCMIPCSender.setPCMData(mPCMIPCCache);
+        mPCMIPCSender.start();
     }
 
 
@@ -273,6 +310,7 @@ public class AudioRecorder implements PCMSender.PCMSocketConnecteListener {
      * @param path
      */
     private void pcm2amrWithOpencoreAmr(String path) {
+        PreferenceUtil.put(mContext, Constants.SP_RECORDER_PATH, path);
         AmrEncoder.init(0);
         int mode = AmrEncoder.Mode.MR122.ordinal();
         //每次读取1280个PCM采样，最终经过下采样转为640个采样，压缩为4个AMR帧
@@ -288,10 +326,9 @@ public class AudioRecorder implements PCMSender.PCMSocketConnecteListener {
         FileOutputStream fosRaw = null;
         //0x23 21 41 4d 52 2d 57 42 0a AMR_WB
         final byte[] AMR_HEAD = new byte[]{0x23, 0x21, 0x41, 0x4D, 0x52, 0x0A};
-        mPCMCache.clear();
+        mPCMSocketCache.clear();
+        mPCMIPCCache.clear();
         try {
-            String testFile = "/storage/emulated/legacy/testaudiorecord.raw";
-//            fosRaw = new FileOutputStream(testFile);
 
             fos = new FileOutputStream(path, true);
             fos.write(AMR_HEAD, 0, AMR_HEAD.length);
@@ -300,8 +337,8 @@ public class AudioRecorder implements PCMSender.PCMSocketConnecteListener {
                 DDLog.i(AudioRecorder.class, "pcm2amrWithOpencoreAmr,readsize=" + read + ",in.length=" + in.length + "-------");
 
                 //PCM数据转为byte数组，并添加到缓存队列,注意这里需要使用小端模式
-                mPCMCache.push(ArrayUtil.toByteArraySmallEnd(in));
-//                fosRaw.write(ArrayUtil.toByteArraySmallEnd(in));
+                mPCMSocketCache.push(ArrayUtil.toByteArraySmallEnd(in));
+                mPCMIPCCache.push(ArrayUtil.toByteArraySmallEnd(in));
 
                 short[] downIn = downSample(in);
                 for (int i = 0; i < 4; i++) {
@@ -311,7 +348,8 @@ public class AudioRecorder implements PCMSender.PCMSocketConnecteListener {
                     fos.write(out, 0, out.length);
                 }
             }
-            mPCMCache.push(STOP_FLAG);
+            mPCMSocketCache.push(STOP_FLAG);
+            mPCMIPCCache.push(STOP_FLAG);
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
@@ -319,8 +357,6 @@ public class AudioRecorder implements PCMSender.PCMSocketConnecteListener {
                 assert fos != null;
                 fos.flush();
                 fos.close();
-//                fosRaw.flush();
-//                fosRaw.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }

@@ -1,19 +1,21 @@
 package com.flyscale.ecserver.service;
 
+import com.flyscale.ecapp.IDataInfo;
 import com.flyscale.ecserver.global.Constants;
 import com.flyscale.ecserver.recorder.Queue;
 import com.flyscale.ecserver.util.DDLog;
 
-import java.io.IOException;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 
 /**
  * Created by bian on 2019/1/23.
+ *
+ * 通过Socket发送音频数据
  */
 
-public class PCMSender extends Thread {
+public class PCMSocketSender extends Thread {
 
     private boolean mLoop = true;
     private boolean mConnected = true;
@@ -22,7 +24,7 @@ public class PCMSender extends Thread {
     private Queue<byte[]> mData;
     private PCMSocketConnecteListener mPCMSocketConnecteListener;
 
-    public PCMSender(ServerSocket serverSocket) {
+    public PCMSocketSender(ServerSocket serverSocket) {
         mServerSocket = serverSocket;
     }
 
@@ -41,9 +43,9 @@ public class PCMSender extends Thread {
                 mServerSocket = new ServerSocket(Constants.LOCAL_PORT_STREAM);
             }
             while (mLoop) {
-                DDLog.i(PCMSender.class, "server is waiting for client...");
+                DDLog.i(PCMSocketSender.class, "server is waiting for client...");
                 mClientSocket = mServerSocket.accept();
-                DDLog.i(PCMSender.class, "accept a client");
+                DDLog.i(PCMSocketSender.class, "accept a client");
                 if (mPCMSocketConnecteListener != null) {
                     mPCMSocketConnecteListener.onConnect();
                 }

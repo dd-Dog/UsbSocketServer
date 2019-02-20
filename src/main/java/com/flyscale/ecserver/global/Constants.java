@@ -58,7 +58,7 @@ public class Constants {
     public static final String CMD_EVENT_TYPE = "EventType";//事件类型
     public static final String CMD_EVENT_VALUE = "EventValue";//事件携带的相关信息
 
-    public static final String CMD_CALL_NUMBER = "CallNumber";
+    public static final String CMD_CALL_NUMBER = "CallNumber";//当前通话电话号码
 
 
 
