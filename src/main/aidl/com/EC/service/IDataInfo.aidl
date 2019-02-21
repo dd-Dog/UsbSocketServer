@@ -1,5 +1,5 @@
 // IDataInfo.aidl
-package com.flyscale.ecapp;
+package com.EC.service;
 
 
 // Declare any non-default types here with import statements

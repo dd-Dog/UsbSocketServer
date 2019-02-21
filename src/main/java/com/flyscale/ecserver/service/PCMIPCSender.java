@@ -1,13 +1,9 @@
 package com.flyscale.ecserver.service;
 
-import com.flyscale.ecapp.IDataInfo;
-import com.flyscale.ecserver.global.Constants;
+import com.EC.service.IDataInfo;
 import com.flyscale.ecserver.recorder.Queue;
 import com.flyscale.ecserver.util.DDLog;
 
-import java.io.OutputStream;
-import java.net.ServerSocket;
-import java.net.Socket;
 
 /**
  * Created by bian on 2019/1/23.
@@ -51,7 +47,7 @@ public class PCMIPCSender extends Thread {
         super.run();
         try {
             while (mLoop) {
-                DDLog.i(PCMIPCSender.class, "looping...");
+//                DDLog.i(PCMIPCSender.class, "looping...");
 
                 //IDataInfo和缓存都不为空的时候才进行数据的发送，否则等待
                 if (mIDataInfo == null || mData == null) {

@@ -13,7 +13,6 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.hardware.usb.UsbManager;
-import android.os.Binder;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -27,11 +26,10 @@ import android.telephony.SmsMessage;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 
-import com.flyscale.ecapp.IDataInfo;
-import com.flyscale.ecserver.IListenService;
+import com.EC.service.IDataInfo;
+import com.EC.service.IListenService;
 import com.flyscale.ecserver.MainActivity;
 import com.flyscale.ecserver.recorder.AudioRecorder;
-import com.flyscale.ecserver.recorder.Recorder;
 import com.flyscale.ecserver.SmsHandler;
 import com.flyscale.ecserver.bean.CallInfo;
 import com.flyscale.ecserver.bean.DeviceInfo;
@@ -55,11 +53,10 @@ import org.json.JSONTokener;
 import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
-import java.sql.Time;
+import java.net.Socket;
 import java.util.List;
 import java.util.Objects;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 
 /**
@@ -99,8 +96,8 @@ public class ServerService extends Service {
     public static final int KEEP_ALIVE_INTERVAL = 40 * 1000;
     public static final int MSG_KEEP_ALIVE = 3003;
     private static final int MSG_CLIENT_TIMEOUT = 3004;
-    private ServerSocket mPCMServerSocket;
     private IDataInfo mIDataInfo;
+    private ClientPCMListenerThread mPCMServerThread;
 
 
     public static String getAddress() {
@@ -131,12 +128,7 @@ public class ServerService extends Service {
         //设置为前台进程，提高优先级
         startForegournd();
         mContext = getApplicationContext();
-        try {
-            mPCMServerSocket = new ServerSocket(Constants.LOCAL_PORT_STREAM);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        mRecorder = AudioRecorder.getInstance(this, mPCMServerSocket, mIDataInfo);
+        mRecorder = AudioRecorder.getInstance(this, mIDataInfo, null);
         mRecorder.init();
         //注册动态广播接收器
         registerReceivers();
@@ -155,15 +147,35 @@ public class ServerService extends Service {
         stopServerTherad(false);
         startServerThread();
 
-        startPCMSender();
+        startPCMSocketServer();
         return super.onStartCommand(intent, flags, startId);
     }
 
     /**
      * 开启线程，建立发送音频数据流的socket连接
      */
-    private void startPCMSender() {
+    private void startPCMSocketServer() {
+        DDLog.i(ServerService.class, "startPCMSocketServer");
+        if (mPCMServerThread == null) {
+            mPCMServerThread = new ClientPCMListenerThread(mHandler);
+            mPCMServerThread.start();
+        } else {
+            if (mPCMServerThread.isAlive()) {
+                DDLog.w(ServerService.class, "ClientPCMListenerThread is running,only one instance is permitted");
+            } else {
+                mPCMServerThread = new ClientPCMListenerThread(mHandler);
+                mPCMServerThread.start();
+            }
+        }
+    }
 
+    private void stopPCMSocketServer() {
+        DDLog.i(ServerService.class, "stopPCMSocketServer");
+        if (mPCMServerThread != null) {
+            if (mPCMServerThread.isAlive()) {
+                mPCMServerThread.interrupt();
+            }
+        }
     }
 
     private class ServiceHandler extends Handler {
@@ -194,6 +206,10 @@ public class ServerService extends Service {
                     case MSG_CLIENT_TIMEOUT:
 //                        stopServerTherad(true);
 //                        DDLog.i(ServerService.class, "client timeout,stop and restart listener!");
+                        break;
+                    case ClientPCMListenerThread.MSG_CLIENT_CHANGED:
+                        CopyOnWriteArrayList<Socket> sockets = (CopyOnWriteArrayList<Socket>) msg.obj;
+                        mRecorder.notifySocketChanged(sockets);
                         break;
 
                 }
@@ -805,6 +821,7 @@ public class ServerService extends Service {
         DDLog.i(ServerService.class, "onDestroy()");
         super.onDestroy();
         stopServerTherad(false);
+        stopPCMSocketServer();
         mTm.listen(mPhoneStateListener, PhoneStateListener.LISTEN_NONE);
         unregisterReceiver(mServerReceiver);
         unregisterReceiver(mSmsReceiver);
@@ -812,6 +829,8 @@ public class ServerService extends Service {
         getContentResolver().unregisterContentObserver(mSmsObserver);
         stopForeground(true);
     }
+
+
 
     private class MyPhoneStateListener extends PhoneStateListener {
         @Override

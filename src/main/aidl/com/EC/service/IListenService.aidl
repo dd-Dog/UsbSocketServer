@@ -1,7 +1,7 @@
 // IListenService.aidl
-package com.flyscale.ecserver;
+package com.EC.service;
 
-import com.flyscale.ecapp.IDataInfo;
+import com.EC.service.IDataInfo;
 
 // Declare any non-default types here with import statements
 
