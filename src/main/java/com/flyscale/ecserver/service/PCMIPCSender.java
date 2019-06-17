@@ -1,6 +1,6 @@
 package com.flyscale.ecserver.service;
 
-import com.EC.service.IDataInfo;
+import com.xr.service.IDataInfo;
 import com.flyscale.ecserver.recorder.Queue;
 import com.flyscale.ecserver.util.DDLog;
 

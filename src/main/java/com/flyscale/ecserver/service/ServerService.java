@@ -26,8 +26,8 @@ import android.telephony.SmsMessage;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 
-import com.EC.service.IDataInfo;
-import com.EC.service.IListenService;
+import com.xr.service.IDataInfo;
+import com.xr.service.IListenService;
 import com.flyscale.ecserver.MainActivity;
 import com.flyscale.ecserver.recorder.AudioRecorder;
 import com.flyscale.ecserver.SmsHandler;
@@ -51,8 +51,6 @@ import org.json.JSONObject;
 import org.json.JSONTokener;
 
 import java.io.File;
-import java.io.IOException;
-import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.List;
 import java.util.Objects;
@@ -332,10 +330,16 @@ public class ServerService extends Service {
                 case Constants.EVENT_TYPE_AUTO_REPLY_AUDIO:
                     if (PhoneUtil.isOffhook(this)) {
                         String audioPath = cmdObj.getString(Constants.CMD_EVENT_VALUE);
-//                        String test = "/storage/emulated/legacy/shuaicongge.mp3";
+                        String realPath = null;
+//                        audioPath = "/storage/emulated/legacy/RobotVoice/01.wav";
+                        if (audioPath.contains("//")){
+                            realPath = audioPath.replace("//", "/");
+                        }else {
+                            realPath = audioPath;
+                        }
                         Intent playSound = new Intent(Constants.ACTION_PLAY_SOUND_2MIC);
                         playSound.putExtra("action", true);
-                        playSound.putExtra("audio_path", audioPath);
+                        playSound.putExtra("audio_path", realPath);
                         sendBroadcast(playSound);
                         DDLog.i(ServerService.class, "send broadcast to play sound 2 microphone");
                     }
@@ -343,9 +347,8 @@ public class ServerService extends Service {
                 case Constants.EVENT_TYPE_OUTTIME_GETCALL:
                     //TODO 超时自动接听，机器人回复
                     break;
-                case Constants.EVENT_TYPE_CHANGE_MANUAL_WORK:
 
-                    break;
+                case Constants.EVENT_TYPE_CHANGE_MANUAL_WORK://切换到人工模式即停止播放录音
                 case Constants.EVENT_TYPE_STOP_PLAY2CALL:
                     DDLog.i(ServerService.class, "EVENT_TYPE_STOP_PLAY2CALL");
                     Intent playSound = new Intent(Constants.ACTION_PLAY_SOUND_2MIC);
@@ -373,6 +376,17 @@ public class ServerService extends Service {
                     } finally {
                         mServerThread.sendMsg2Client(packageBean.toJson());
                         DDLog.i(ServerService.class, "packageBean=" + packageBean.toJson());
+                    }
+                    break;
+                case Constants.EVENT_TYPE_PC_TO_APP_DATA:
+                    String pc2AppData = cmdObj.getString(Constants.CMD_EVENT_VALUE);
+                    DDLog.i(ServerService.class, "pc2AppData=" + pc2AppData);
+                    if (mIDataInfo != null) {
+                        try {
+                            mIDataInfo.getPctoAppData(pc2AppData);
+                        } catch (RemoteException e) {
+                            e.printStackTrace();
+                        }
                     }
                     break;
                 default:
@@ -710,10 +724,10 @@ public class ServerService extends Service {
             DDLog.i(ServerBinder.class, "onTransact");
             //权限验证
             int check = checkCallingPermission(Constants.BIND_SERVICE_PERMISSION);
-            if (check == PackageManager.PERMISSION_DENIED) {
+           /* if (check == PackageManager.PERMISSION_DENIED) {
                 DDLog.w(ServerBinder.class, "permission denied!");
                 return false;
-            }
+            }*/
             //包名验证
             String packageName = null;
             String[] packages = getPackageManager().getPackagesForUid(getCallingUid());
@@ -747,6 +761,10 @@ public class ServerService extends Service {
     @Override
     public boolean onUnbind(Intent intent) {
         DDLog.i(ServerService.class, "onUnbind");
+        mIDataInfo = null;
+        if (mRecorder != null) {
+            mRecorder.setIDataInfo(null);
+        }
         return super.onUnbind(intent);
     }
 
@@ -829,7 +847,6 @@ public class ServerService extends Service {
         getContentResolver().unregisterContentObserver(mSmsObserver);
         stopForeground(true);
     }
-
 
 
     private class MyPhoneStateListener extends PhoneStateListener {

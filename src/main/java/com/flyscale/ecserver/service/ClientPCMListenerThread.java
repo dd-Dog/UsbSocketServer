@@ -46,7 +46,7 @@ public class ClientPCMListenerThread extends Thread {
             super.handleMessage(msg);
             if (msg.what == MSG_CLIENT_KEELP_ALIVE) {
                 if (mClientSockets != null) {
-                    DDLog.i(ClientListenerThread.class, "check clients connect status,size=" +mClientSockets.size());
+                    DDLog.i(ClientPCMListenerThread.class, "check clients connect status,size=" + mClientSockets.size());
                     for (Socket socket : mClientSockets) {
                         try {
                             //发送紧急字符，测试客户端的连通性
@@ -73,13 +73,21 @@ public class ClientPCMListenerThread extends Thread {
                 Socket socket = mPCMServerSocket.accept();
                 DDLog.i(ClientPCMListenerThread.class, "accept a client");
                 addClient(socket);
-
-                Message message = mHandler.obtainMessage();
-                message.obj = mClientSockets;
-                message.what = MSG_CLIENT_CHANGED;
-                mHandler.sendMessage(message);
+                if (mHandler != null) {
+                    Message message = mHandler.obtainMessage();
+                    message.obj = mClientSockets;
+                    message.what = MSG_CLIENT_CHANGED;
+                    mHandler.sendMessage(message);
+                }
             } catch (IOException e) {
                 e.printStackTrace();
+                if (mPCMServerSocket != null) {
+                    try {
+                        mPCMServerSocket.close();
+                    } catch (IOException e1) {
+                        e1.printStackTrace();
+                    }
+                }
             }
         }
     }
@@ -97,7 +105,7 @@ public class ClientPCMListenerThread extends Thread {
                 DDLog.i(ClientPCMListenerThread.class, "socket exists int list!");
             }
         }
-        if (!exists){
+        if (!exists) {
             mClientSockets.add(socket);
             DDLog.i(ClientListenerThread.class, "add one,socket count=" + mClientSockets.size());
         }

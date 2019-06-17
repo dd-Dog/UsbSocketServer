@@ -6,7 +6,7 @@ import android.media.AudioRecord;
 import android.media.MediaCodec;
 import android.media.MediaRecorder;
 
-import com.EC.service.IDataInfo;
+import com.xr.service.IDataInfo;
 import com.flyscale.ecserver.global.Constants;
 import com.flyscale.ecserver.service.PCMIPCSender;
 import com.flyscale.ecserver.service.PCMSocketSender;
@@ -180,6 +180,8 @@ public class AudioRecorder implements PCMSocketSender.PCMSocketConnecteListener 
 
         if (mIDataInfo != null) {//如果Binder已经连接，则可以开始缓存
             mPCMIPCCache.setEnabled(true);
+        }else{
+            mPCMSocketCache.setEnabled(false);
         }
     }
 

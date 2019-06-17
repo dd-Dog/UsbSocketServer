@@ -34,7 +34,6 @@ public class ArrayUtil {
             dest[i * 2 + 1] = (byte) (src[i] >> 8);
             dest[i * 2 ] = (byte) (src[i] >> 0);
         }
-
         return dest;
     }
     /**
